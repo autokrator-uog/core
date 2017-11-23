@@ -17,8 +17,10 @@ pub struct Error {
 pub enum ErrorKind {
     #[fail(display = "Unable to convert `Vec<u8>` into `String`")]
     InvalidUtf8Bytes,
-    #[fail(display = "Unable to parse JSON")]
-    JsonParse,
+    #[fail(display = "Unable to parse incoming JSON message")]
+    IncomingJsonParse,
+    #[fail(display = "Unable to parse JSON from Kafka")]
+    KafkaJsonParse,
 
     #[fail(display = "Unable to parse new event message")]
     NewEventMessageParse,
@@ -33,6 +35,9 @@ pub enum ErrorKind {
     InvalidMessageType,
     #[fail(display = "Invalid websocket message type")]
     InvalidWebsocketMessageType,
+
+    #[fail(display = "Failure while consumer is processing message")]
+    ConsumerProcessingFailure,
 }
 
 impl Fail for Error {

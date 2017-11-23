@@ -30,7 +30,8 @@ pub fn parse_message(incoming_message: OwnedMessage) -> Result<Box<Message>> {
         _ => Err(ErrorKind::InvalidWebsocketMessageType)
     }?;
 
-    let parsed_message: Value = from_str(&converted_message).context(ErrorKind::JsonParse)?;
+    let parsed_message: Value = from_str(&converted_message).context(
+        ErrorKind::IncomingJsonParse)?;
     let message_type = parsed_message["message_type"].as_str().ok_or(
         ErrorKind::NoMessageTypeProvided)?;
 
@@ -52,7 +53,7 @@ pub fn parse_message(incoming_message: OwnedMessage) -> Result<Box<Message>> {
         },
         _ => {
             error!("Invalid message type: {:?}", message_type);
-            Err(ErrorKind::InvalidMessageType)?
+            Err(ErrorKind::InvalidMessageType).map_err(From::from)
         },
     }
 }

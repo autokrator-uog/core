@@ -147,7 +147,7 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
         let message_as_string = from_utf8(&owned_message.payload().unwrap()).unwrap();
 
         // Parse the message.
-        let parsed_message = consumer::parse_message(message_as_string.to_string());
+        let parsed_message = consumer::parse_message(message_as_string.to_string()).unwrap();
         let state = state_inner.clone();
         let remote = remote_inner.clone();
 
@@ -161,12 +161,12 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
                 let state = state.clone();
                 let parsed_message_inner = parsed_message_inner.clone();
 
+                let processed_message = consumer::process_event(
+                    parsed_message_inner, addr).unwrap();
+
                 // If we decide to send the message, add it to the outgoing queue.
-                if let Some(processed_message) = consumer::process_event(
-                        parsed_message_inner, addr) {
-                    let f = state.send_channel_out.send((addr.to_string(), processed_message));
-                    spawn_future(f, "Send message to write handler", handle);
-                }
+                let f = state.send_channel_out.send((addr.to_string(), processed_message));
+                spawn_future(f, "Send message to write handler", handle);
             }
 
             Ok(())
