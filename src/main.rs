@@ -4,6 +4,9 @@ extern crate chrono;
 extern crate colored;
 extern crate fern;
 
+extern crate failure;
+#[macro_use] extern crate failure_derive;
+
 extern crate futures;
 extern crate futures_cpupool;
 extern crate tokio_core;
@@ -15,6 +18,7 @@ extern crate serde_json;
 extern crate rdkafka;
 extern crate websocket;
 
+mod err;
 mod server;
 mod state;
 mod producer;

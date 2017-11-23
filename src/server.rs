@@ -93,7 +93,7 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
                         state.connections.write().unwrap().remove(&addr);
                     } else {
                         remote.spawn(move |_| {
-                            let parsed_message = producer::parse_message(msg);
+                            let parsed_message = producer::parse_message(msg).unwrap();
                             parsed_message.process(addr, state.producer, state.topic);
                             Ok(())
                         });
