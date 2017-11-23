@@ -23,7 +23,8 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn process(&self, addr: String, producer: FutureProducer<EmptyContext>, topic: String) {
+    pub fn process(&self, addr: String, producer: FutureProducer<EmptyContext>,
+                   topic: String) -> Result<()> {
         match *self {
             Message::NewEvent(ref e) => e.process(addr, producer, topic),
             Message::Register(ref e) => e.process(addr, producer, topic),
@@ -33,7 +34,8 @@ impl Message {
 }
 
 pub trait MessageContents {
-    fn process(&self, addr: String, producer: FutureProducer<EmptyContext>, topic: String);
+    fn process(&self, addr: String, producer: FutureProducer<EmptyContext>,
+               topic: String) -> Result<()>;
 }
 
 /// Process a message that is received from a WebSocket connection.

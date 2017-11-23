@@ -38,9 +38,29 @@ pub enum ErrorKind {
 
     #[fail(display = "Failure while consumer is processing message")]
     ConsumerProcessingFailure,
+
+    #[fail(display = "Unable to create Kafka producer")]
+    KafkaProducerCreationFailure,
+    #[fail(display = "Unable to create Kafka consumer")]
+    KafkaConsumerCreationFailure,
+    #[fail(display = "Unable to subscribe to topic")]
+    TopicSubscriptionFailure,
+
+    #[fail(display = "Unable to create event loop")]
+    EventLoopCreationFailure,
+    #[fail(display = "Unable to run event loop")]
+    EventLoopRunFailure,
+    #[fail(display = "Unable to create websocket server")]
+    WebsocketServerBindingFailure,
+    #[fail(display = "Invalid connection")]
+    InvalidConnection,
+
+    #[fail(display = "Received Kafka message with no payload")]
+    KafkaMessageWithNoPayload,
 }
 
 impl Error {
+    #[allow(dead_code)]
     pub fn kind(&self) -> ErrorKind { *self.inner.get_context() }
 }
 
