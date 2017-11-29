@@ -30,9 +30,9 @@ echo
 echo
 echo "====> Starting docker-compose..."
 if [ "$1" == 'in_docker' ]; then
-    docker-compose -f docker/base.yml -f docker/persistence.yml -f docker/event-bus.yml up --build -d --remove-orphans
+    docker-compose -f docker/base.yml  -f docker/event-bus.yml up --build -d --remove-orphans
 else
-    docker-compose -f docker/base.yml -f docker/persistence.yml up --build -d --remove-orphans
+    docker-compose -f docker/base.yml up --build -d --remove-orphans
 fi
 echo "====> [+] docker-compose started."
 
@@ -75,7 +75,7 @@ echo
 echo "======================================="
 if [ "$1" == 'in_docker' ]; then
     echo "EVENT BUS LOGS: "
-    docker-compose -f docker/base.yml -f docker/persistence.yml -f docker/event-bus.yml logs -f event-bus
+    docker-compose -f docker/base.yml -f docker/event-bus.yml logs -f event-bus
 
 elif [ "$1" == 'run_bus' ]; then
     echo "RUN EVENT BUS:"
