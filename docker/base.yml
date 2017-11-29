@@ -1,14 +1,10 @@
 version: '2.2'
 
 networks:
-  hostnet:
-    external:
-      name: thenet
   kafka-internal:
     driver: bridge
   kafka-public:
     driver: bridge
-  
 
 services:
   zookeeper:
@@ -30,7 +26,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     networks:
-      - hostnet
       - kafka-internal
       - kafka-public
     restart: always

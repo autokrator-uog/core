@@ -1,10 +1,5 @@
 version: '2.2'
 
-networks:
-  hostnet:
-    external:
-      name: thenet
-
 services:
   event-bus:
     build: ../event-bus/
@@ -13,5 +8,4 @@ services:
       TOPIC: events
       GROUP: event-bus
     networks:
-      - hostnet
       - kafka-public
