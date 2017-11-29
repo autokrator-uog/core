@@ -53,8 +53,7 @@ if [ "$1" == 'in_docker' ]; then
 
 elif [ "$1" == 'run_bus' ]; then
     echo "RUN EVENT BUS:"
-    cd event-bus
-    cargo run -- "$@"
+    cargo run -- "${@:2}"
 
 else
     echo "====> [+] DEPENDENCIES RUNNING!"
