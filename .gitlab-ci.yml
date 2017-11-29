@@ -13,14 +13,12 @@ test_event_bus:
   image: rust:1.21
   stage: test
   script:
-    - cd event-bus
     - cargo test
 
 build_event_bus:
   image: docker:latest
   stage: build
   script:
-    - cd event-bus
     - docker build -t $EVENT_BUS_TAG_THIS_BUILD .
     - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
     - docker push $EVENT_BUS_TAG_THIS_BUILD
