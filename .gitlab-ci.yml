@@ -1,0 +1,38 @@
+
+variables:
+  REGISTRY: sed-team-project:4567
+  REG_EVENT_BUS: sed-team-project:4567/sed-dev-group/sed-dev-project/event-bus
+  EVENT_BUS_TAG_THIS_BUILD: $REG_EVENT_BUS:$CI_COMMIT_REF_NAME
+
+stages:
+  - test
+  - build
+  - publish
+
+test_event_bus:
+  image: rust:1.21
+  stage: test
+  script:
+    - cd event-bus
+    - cargo test
+
+build_event_bus:
+  image: docker:latest
+  stage: build
+  script:
+    - cd event-bus
+    - docker build -t $EVENT_BUS_TAG_THIS_BUILD .
+    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
+    - docker push $EVENT_BUS_TAG_THIS_BUILD
+
+prod_tag_event_bus:
+  image: docker:latest
+  stage: publish
+  script:
+    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
+
+    - docker pull $EVENT_BUS_TAG_THIS_BUILD
+    - docker tag $EVENT_BUS_TAG_THIS_BUILD $REG_EVENT_BUS:latest
+    - docker push $REG_EVENT_BUS:latest
+  only:
+    - master
