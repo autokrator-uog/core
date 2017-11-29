@@ -2,7 +2,7 @@ version: '2.2'
 
 services:
   event-bus:
-    build: ../event-bus/
+    build: ..
     environment:
       BROKER: kafka:9092
       TOPIC: events
