@@ -1,7 +1,7 @@
 
 variables:
   REGISTRY: sed-team-project:4567
-  REG_EVENT_BUS: sed-team-project:4567/sed-dev-group/sed-dev-project/event-bus
+  REG_EVENT_BUS: sed-team-project:4567/sed-dev-group/event-bus
   EVENT_BUS_TAG_THIS_BUILD: $REG_EVENT_BUS:$CI_COMMIT_REF_NAME
 
 stages:
