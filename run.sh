@@ -11,14 +11,6 @@ if ! grep -q zookeeper /etc/hosts; then
    echo "127.0.0.1 zookeeper" >> /etc/hosts
 fi
 
-if ! grep -q connect /etc/hosts; then
-   echo "127.0.0.1 connect" >> /etc/hosts
-fi
-
-if ! grep -q couchbase.db /etc/hosts; then
-   echo "127.0.0.1 couchbase.db" >> /etc/hosts
-fi
-
 if ! grep -q event-bus /etc/hosts; then
    echo "127.0.0.1 event-bus" >> /etc/hosts
 fi
@@ -38,27 +30,9 @@ echo "====> [+] docker-compose started."
 
 echo
 echo
-echo "====> ....waiting for containers to come online..."
-until [ "$(curl --silent --head --output /dev/stdout couchbase.db:8091 2>&1 | cat -)" != "" ]; do
-    printf '.'
-    sleep 1
-done
-until [ "$(curl --silent --head --output /dev/stdout connect:8083 2>&1 | cat -)" != "" ]; do
-    printf '.'
-    sleep 1
-done
-
-echo
-echo
 echo "====> Testing name resolution for containers..."
 set -eE   # set the script to fail if any of the commands return non-zero
 trap 'echo "====> [-] ERROR IN /etc/hosts SET UP!"' ERR
-
-curl --silent --head --output /dev/null couchbase.db:8091
-echo "[+] Couchbase: OK"
-
-curl --silent --head --output /dev/null connect:8083
-echo "[+] Connect: OK"
 
 curl --output /dev/stdout --head kafka:9092 2>&1 | grep "Empty reply from server"
 echo "[+] Kafka: OK"
