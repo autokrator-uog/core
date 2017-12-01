@@ -27,7 +27,7 @@ pub fn parse_message(incoming_message: OwnedMessage) -> Box<Message> {
     }.unwrap();
 
     let parsed_message: Value = from_str(&converted_message).unwrap();
-    let message_type = parsed_message["type"].as_str().unwrap();
+    let message_type = parsed_message["message_type"].as_str().unwrap();
 
     match message_type {
         "query" => {

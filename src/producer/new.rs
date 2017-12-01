@@ -22,6 +22,7 @@ impl Message for NewEventMessage {
     fn process(&self, addr: String, producer: FutureProducer<EmptyContext>, topic: String) {
         for raw_event in self.events.iter() {
             let event = Event {
+                message_type: "new".to_string(),
                 timestamp: Local::now().to_rfc2822(),
                 addr: addr.clone(),
                 event_type: raw_event.event_type.clone(),

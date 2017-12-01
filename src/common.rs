@@ -4,6 +4,7 @@ pub type EventContents = Value;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Event {
+    pub message_type: String,
     pub timestamp: String,
     pub addr: String,
     pub event_type: String,
