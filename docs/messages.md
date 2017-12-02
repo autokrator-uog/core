@@ -5,18 +5,18 @@ All different types of message contain at least the following fields:
 
 Field Name | Purpose
 ---------- | -------
-`type`     | Informs the event bus of what type of message this is and how it should be handled.
+`message_type`     | Informs the event bus and client libraries of what type of message this is and how it should be handled.
 
 ## Subscription
 Once connected to the event bus, a client will receive messages for any subscribed event types, each message will be in the following format:
 
 ```json
 {
-      "type": "event",
-      "event_type": "deposit",
-      "timestamp": "2010-06-09T15:20:00-07:00"
-      "sender": "V4(127.0.0.1:45837)"
-      "data": {}
+  "message_type": "event",
+  "event_type": "deposit",
+  "timestamp": "2010-06-09T15:20:00-07:00",
+  "sender": "V4(127.0.0.1:45837)",
+  "data": {}
 }
 ```
 
@@ -25,11 +25,11 @@ A query message is used to indicate to the event bus that the user wants every m
 
 ```json
 {
-    "type": "query",
-    "event_type": [
-        "deposit"
-    ],
-    "since": "2010-06-09T15:20:00-07:00"
+  "message_type": "query",
+  "event_type": [
+    "deposit"
+  ],
+  "since": "2010-06-09T15:20:00-07:00"
 }
 ```
 
@@ -37,11 +37,11 @@ In response to a query, the event bus will return a stream of messages of the fo
 
 ```json
 {
-      "type": "event",
-      "event_type": "deposit",
-      "timestamp": "2010-06-09T15:20:00-07:00"
-      "sender": "V4(127.0.0.1:45837)"
-      "data": {}
+  "message_type": "event",
+  "event_type": "deposit",
+  "timestamp": "2010-06-09T15:20:00-07:00",
+  "sender": "V4(127.0.0.1:45837)",
+  "data": {}
 }
 ```
 
@@ -52,17 +52,17 @@ A new event message is used to submit a new event(s) to the event bus. The follo
 
 ```json
 {
-    "type": "new",
-    "events": [
-        {
-            "event_type": "deposit",
-            "data": {}
-        },
-        {
-            "event_type": "withdraw1",
-            "data": {}
-        }
-    ]
+  "message_type": "new",
+  "events": [
+    {
+      "event_type": "deposit",
+      "data": {}
+    },
+    {
+      "event_type": "withdrawal",
+      "data": {}
+    }
+  ]
 }
 ```
 
@@ -70,15 +70,15 @@ The data field is arbitrary and is intended to contain the data from the user. I
 
 ```json
 {
-      "type": "receipt",
-      "timestamp": "2010-06-09T15:20:00-07:00"
-      "sender": "V4(127.0.0.1:45837)"
-      "events": [
-            {
-                "checksum": "6f56b5595749e8fa737927a9f8a1ed5e50a9d600",
-                "status": "success"
-            }
-      ]
+  "message_type": "receipt",
+  "timestamp": "2010-06-09T15:20:00-07:00",
+  "sender": "V4(127.0.0.1:45837)",
+  "events": [
+    {
+      "checksum": "6f56b5595749e8fa737927a9f8a1ed5e50a9d600",
+      "status": "success"
+    }
+  ]
 }
 ```
 
@@ -89,11 +89,11 @@ A register message is used to initialise a session with the event bus and inform
 
 ```json
 {
-    "type: "register",
-    "event_types" [
-        "deposit",
-        "withdrawl"
-    }
+  "message_type": "register",
+  "event_types": [
+    "deposit",
+    "withdrawal"
+  ]
 }
 ```
 
@@ -101,10 +101,10 @@ In response to a register message, the event bus will send a single message cont
 
 ```json
 {
-    "type: "registration",
-    "event_types" [
-        "deposit",
-        "withdrawl"
-    }
+  "message_type": "registration",
+  "event_types": [
+    "deposit",
+    "withdrawal"
+  ]
 }
 ```
