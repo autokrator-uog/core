@@ -4,8 +4,7 @@ extern crate chrono;
 extern crate colored;
 extern crate fern;
 
-extern crate failure;
-#[macro_use] extern crate failure_derive;
+#[macro_use] extern crate failure;
 
 extern crate futures;
 extern crate futures_cpupool;
