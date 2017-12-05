@@ -40,6 +40,10 @@ pub enum ErrorKind {
     ConsumerProcessingFailure,
 }
 
+impl Error {
+    pub fn kind(&self) -> ErrorKind { *self.inner.get_context() }
+}
+
 impl Fail for Error {
     fn cause(&self) -> Option<&Fail> { self.inner.cause() }
     fn backtrace(&self) -> Option<&Backtrace> { self.inner.backtrace() }
