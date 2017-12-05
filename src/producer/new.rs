@@ -1,5 +1,6 @@
-use producer::MessageContents;
 use common::{Event, EventContents};
+use err::Result;
+use producer::MessageContents;
 
 use chrono::Local;
 use serde_json::to_string;
@@ -19,7 +20,8 @@ pub struct NewEventMessage {
 }
 
 impl MessageContents for NewEventMessage {
-    fn process(&self, addr: String, producer: FutureProducer<EmptyContext>, topic: String) {
+    fn process(&self, addr: String, producer: FutureProducer<EmptyContext>,
+               topic: String) -> Result<()> {
         for raw_event in self.events.iter() {
             let event = Event {
                 message_type: "new".to_string(),
@@ -35,5 +37,6 @@ impl MessageContents for NewEventMessage {
                                                  Some(&serialized_event), Some(&event.event_type),
                                                  None, 1000);
         }
+        Ok(())
     }
 }

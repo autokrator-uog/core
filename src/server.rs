@@ -1,25 +1,27 @@
+use err::{ErrorKind, Result};
+use failure::{Fail, ResultExt};
+
 use futures::{Future, Sink, Stream};
-use futures_cpupool::CpuPool;
-use tokio_core::reactor::{Handle, Core};
+use tokio_core::reactor::{Handle, Remote, Core};
 
-use producer;
+use common::Event;
+use state::{EventLoopState, ServerState};
 use consumer;
+use producer;
 
-use std::str::from_utf8;
-use std::rc::Rc;
 use std::fmt::Debug;
+use std::str::from_utf8;
 
 use rdkafka::Message;
+use rdkafka::message::OwnedMessage as KafkaOwnedMessage;
 
-use websocket::message::OwnedMessage;
+use websocket::message::OwnedMessage as WsOwnedMessage;
 use websocket::async::Server;
 use websocket::server::InvalidConnection;
 
-use state::ServerState;
-
-pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
+pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) -> Result<()> {
     // Create our event loop.
-    let mut core = Core::new().expect("Failed to create Tokio event loop");
+    let mut core = Core::new().context(ErrorKind::EventLoopCreationFailure)?;
 
     // Create a handle for spawning futures from the main thread.
     let handle = core.handle();
@@ -27,21 +29,18 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
 
     // Create all of the required state.
     let ServerState {state, receive_channel_in, send_channel_in, consumer } =
-        ServerState::new(brokers, group, topic);
+        ServerState::new(brokers, group, topic)?;
 
     // Create the websocket server and add it on the event loop.
-    let server = Server::bind(bind, &handle).expect("Failed to create websocket server");
+    let server = Server::bind(bind, &handle).context(ErrorKind::WebsocketServerBindingFailure)?;
     info!("Running websocket server on {:?}", bind);
-
-    // Create a (single-threaded) reference-counted CPU pool.
-    let cpu_pool = Rc::new(CpuPool::new_num_cpus());
 
     // We must clone the state into state_inner so that when it is captured by the
     // move closure, we still have the state for use outside. We will see this pattern
     // throughout.
     let state_inner = state.clone();
     let connection_handler = server.incoming()
-        .map_err(|InvalidConnection { error, .. }| error)
+        .map_err(|InvalidConnection { error, .. }| error.context(ErrorKind::InvalidConnection))
         .for_each(move |(upgrade, addr)| {
             let state = state_inner.clone();
             let handle_inner = handle.clone();
@@ -59,19 +58,24 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
 
                 // Add the sink to the HashMap so that we can get it when we want
                 // to send a message to the client.
-                state.connections.write().unwrap().insert(format!("{:?}", addr), sink);
+                match state.connections.try_write() {
+                    Ok(mut m) => {
+                        m.insert(format!("{:?}", addr), sink);
+                        ()
+                    },
+                    Err(_) => warn!("RwLock has been poisoned!"),
+                }
                 Ok(())
             });
 
             spawn_future(f, "Handle new connection", &handle);
             Ok(())
-        })
-        .map_err(|_| {});
+        });
 
     let state_inner = state.clone();
     let remote_inner = remote.clone();
     // Spawn a handler for outgoing clients so that this doesn't block the main thread.
-    let receive_handler = cpu_pool.spawn_fn(|| {
+    let receive_handler = state.cpu_pool.spawn_fn(|| {
         receive_channel_in.for_each(move |(addr, stream)| {
             let state = state_inner.clone();
             let remote = remote_inner.clone();
@@ -88,95 +92,169 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) {
                     let remote = remote.clone();
                     let addr = addr.clone();
 
-                    if let OwnedMessage::Close(_) = msg {
+                    if let WsOwnedMessage::Close(_) = msg {
                         info!("Removing connection {:?} from clients", &addr);
-                        state.connections.write().unwrap().remove(&addr);
+                        match state.connections.try_write() {
+                            Ok(mut m) => {
+                                if let None = m.remove(&addr) {
+                                    warn!("Unable to remove connection from map");
+                                }
+                            },
+                            Err(_) => warn!("RwLock has been poisoned!"),
+                        }
                     } else {
                         remote.spawn(move |_| {
-                            let parsed_message = producer::parse_message(msg).unwrap();
-                            parsed_message.process(addr, state.producer, state.topic);
+                            info!("Parsing producer message from {:?}", addr);
+                            let parsed_message = producer::parse_message(msg);
+                            match parsed_message {
+                                Ok(m) => {
+                                    info!("Processing producer message from {:?}", addr);
+                                    if let Err(e) = m.process(addr, state.producer, state.topic) {
+                                        error!("Error occurred when processing message: {:?}", e);
+                                    }
+                                },
+                                Err(e) => {
+                                    warn!("Unable to parse message from websocket: {:?}", e);
+                                }
+                            }
                             Ok(())
                         });
                     }
 
                     Ok(())
-                }).map_err(|_| ())
+                }).map_err(|e| {
+                    error!("Error in websocket stream: {:?}", e);
+                    ()
+                })
             });
+
             Ok(())
         })
     });
 
     let state_inner = state.clone();
-    let send_handler = cpu_pool.spawn_fn(move || {
+    let remote_inner = remote.clone();
+    let send_handler = state.cpu_pool.spawn_fn(move || {
         let state = state_inner.clone();
+        let remote = remote_inner.clone();
 
         // send_channel_in contains the messages that we're queuing up to
         // send to the client at addr.
-        send_channel_in.and_then({
+        send_channel_in.for_each(move |(addr, msg): (String, String)| {
             let state = state.clone();
-            move |(addr, msg): (String, String)| {
-                let sink = state.connections.write().unwrap().remove(&addr)
-                    .expect("Tried to send to invalid client address.");
+            let remote = remote.clone();
 
+            info!("Removing {:?} from connections to send", addr);
+            let sink_result = match state.connections.try_write() {
+                Ok(mut m) => m.remove(&addr),
+                Err(_) => {
+                    warn!("RwLock has been poisoned!");
+                    None
+                },
+            };
+
+            if let Some(sink) = sink_result {
                 info!("Sending {:?} to {:?}", msg, addr);
-                sink.send(OwnedMessage::Text(msg))
-                    .map(move |sink| (addr, sink))
-                    .map_err(|_| ())
+                let f = sink.send(WsOwnedMessage::Text(msg))
+                            .and_then(move |sink| {
+                                info!("Re-adding {:?} to connections after send", addr);
+                                match state.connections.try_write() {
+                                    Ok(mut m) => {
+                                        m.insert(addr, sink);
+                                        ()
+                                    },
+                                    Err(_) => warn!("RwLock has been poisoned!"),
+                                }
+                                Ok(())
+                            });
+
+                remote.spawn(move |handle| {
+                    spawn_future(f, "Send message on websocket connection", handle);
+                    Ok(())
+                });
+            } else {
+                warn!("Unable to find client addr in connections map: {:?}", addr);
             }
-        }).for_each(move |(addr, sink)| {
-            state.connections.write().unwrap().insert(addr, sink);
+
             Ok(())
         })
-    }).map_err(|_| ());
+    });
 
     let state_inner = state.clone();
     let remote_inner = remote.clone();
     // Start watching for messages in subscribed topics.
-    let consumer_handler = consumer.start().filter_map(|result| {
-        // Discard any errors from the messages.
-        match result {
-            Ok(msg) => Some(msg),
-            Err(kafka_error) => {
-                warn!("Error while receiving from Kafka {:?}", kafka_error);
-                None
+    let consumer_handler = consumer.start()
+        .filter_map(|result| {
+            // Discard any errors from the Kafka subscription.
+            match result {
+                Ok(v) => Some(v),
+                Err(e) => {
+                    error!("Kafka error: {:?}", e);
+                    None
+                }
             }
-        }
-    }).for_each(move |msg| {
-        // Take ownership of the message and convert the &[u8] to a &str.
-        let owned_message = msg.detach();
-        let message_as_string = from_utf8(&owned_message.payload().unwrap()).unwrap();
+        }).for_each(move |msg| {
+            let state = state_inner.clone();
+            let remote = remote_inner.clone();
+            let owned_message = msg.detach();
 
-        // Parse the message.
-        let parsed_message = consumer::parse_message(message_as_string.to_string()).unwrap();
-        let state = state_inner.clone();
-        let remote = remote_inner.clone();
-
-        // Spawn a thread to send it to all clients.
-        remote.spawn(move |handle| {
             let state = state.clone();
-            let parsed_message_inner = parsed_message.clone();
+            let remote = remote.clone();
 
-            // Loop over the clients.
-            for (addr, _) in state.connections.read().unwrap().iter() {
-                let state = state.clone();
-                let parsed_message_inner = parsed_message_inner.clone();
-
-                let processed_message = consumer::process_event(
-                    parsed_message_inner, addr).unwrap();
-
-                // If we decide to send the message, add it to the outgoing queue.
-                let f = state.send_channel_out.send((addr.to_string(), processed_message));
-                spawn_future(f, "Send message to write handler", handle);
+            let parsed_message = parse_consumer_payload(owned_message);
+            match parsed_message {
+                Ok(m) => send_event_to_clients(&state, remote, m),
+                Err(e) => warn!("Unable to parse message from Kafka: {:?}", e),
             }
 
             Ok(())
         });
 
-        Ok(())
-    });
+    let handlers = connection_handler.select2(receive_handler.select2(
+            send_handler.select2(consumer_handler)));
+    core.run(handlers)
+        .map(|_| ())
+        .map_err(|_| ErrorKind::EventLoopRunFailure)
+        .map_err(From::from)
+}
 
-    let handlers = connection_handler.select2(receive_handler.select2(send_handler.select2(consumer_handler)));
-    core.run(handlers).map_err(|_| error!("Error while running core loop")).unwrap();
+fn send_event_to_clients(state: &EventLoopState, remote: Remote, message: Event) {
+    match state.connections.try_read() {
+        Ok(map) => {
+            // Loop over the clients.
+            for (addr, _) in map.iter() {
+                let state = state.clone();
+                let parsed_message = message.clone();
+
+                info!("Processing consumer message to {:?}", addr);
+                let processed_message = consumer::process_event(parsed_message, addr);
+
+                match processed_message {
+                    Ok(m) => {
+                        let f = state.send_channel_out.send((addr.to_string(), m));
+
+                        remote.spawn(move |handle| {
+                            spawn_future(f, "Send message to write handler", handle);
+                            Ok(())
+                        });
+                    },
+                    Err(e) => warn!("Unable to process message from Kafka: {:?}", e),
+                }
+            }
+        },
+        Err(_) => warn!("RwLock has been poisoned!"),
+    };
+}
+
+fn parse_consumer_payload(owned_message: KafkaOwnedMessage) -> Result<Event> {
+    info!("Retrieving consumer payload");
+    let payload = owned_message.payload().ok_or(ErrorKind::KafkaMessageWithNoPayload)?;
+
+    info!("Converting consumer payload to string");
+    let msg = from_utf8(payload).context(ErrorKind::InvalidUtf8Bytes)?;
+
+    info!("Parsing consumer payload as message");
+    consumer::parse_message(msg.to_string())
 }
 
 fn spawn_future<F, I, E>(f: F, desc: &'static str, handle: &Handle)

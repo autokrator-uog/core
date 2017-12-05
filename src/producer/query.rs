@@ -1,5 +1,7 @@
 use rdkafka::client::EmptyContext;
 use rdkafka::producer::FutureProducer;
+
+use err::Result;
 use producer::MessageContents;
 
 #[derive(Serialize, Deserialize)]
@@ -9,7 +11,8 @@ pub struct QueryMessage {
 }
 
 impl MessageContents for QueryMessage {
-    fn process(&self, _addr: String, _producer: FutureProducer<EmptyContext>, _topic: String) {
+    fn process(&self, _addr: String, _producer: FutureProducer<EmptyContext>,
+               _topic: String) -> Result<()> {
         unimplemented!();
     }
 }

@@ -81,7 +81,9 @@ fn main() {
             let group = matches.value_of("group").unwrap();
             let topic = sub.value_of("topic").unwrap();
 
-            bootstrap(bind, brokers, group, topic);
+            if let Err(err) = bootstrap(bind, brokers, group, topic) {
+                error!("An error occurred while starting the server: {:?}", err);
+            }
         },
         _ => { }
     };
