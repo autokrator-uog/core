@@ -23,3 +23,52 @@ pub fn process_event(mut event: Event, to: &str) -> Result<String> {
     info!("Sending message to {:?}: {:?}", to, event.data);
     to_string(&event).context(ErrorKind::ConsumerProcessingFailure).map_err(From::from)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_valid_message() {
+        let data = r#"{
+                        "message_type": "event",
+                        "timestamp": "Wed, 9 Jun 2010 22:20:00 UTC",
+                        "addr": "V4(127.0.0.1:45938)",
+                        "event_type": "deposit",
+                        "data": {
+                            "account": 3847,
+                            "amount": 3
+                        }
+                   }"#;
+
+        let parsed = parse_message(data.to_string());
+        assert!(parsed.is_ok());
+
+        if let Ok(message) = parsed {
+            assert_eq!(message.message_type, "event");
+            assert_eq!(message.timestamp, "Wed, 9 Jun 2010 22:20:00 UTC");
+            assert_eq!(message.addr, "V4(127.0.0.1:45938)");
+            assert_eq!(message.event_type, "deposit");
+            assert_eq!(message.data["account"], 3847);
+            assert_eq!(message.data["amount"], 3);
+        }
+    }
+
+    #[test]
+    fn parse_invalid_message() {
+        let data = r#"{
+                        "name": "John Doe",
+                        "age": 43,
+                        "phones": [
+                              "+44 1234567",
+                              "+44 2345678"
+                        ]
+                   }"#;
+        let parsed = parse_message(data.to_string());
+
+        assert!(parsed.is_err());
+        if let Err(e) = parsed {
+            assert_eq!(e.kind(), ErrorKind::KafkaJsonParse);
+        }
+    }
+}

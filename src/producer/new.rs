@@ -1,4 +1,4 @@
-use producer::Message;
+use producer::MessageContents;
 use common::{Event, EventContents};
 
 use chrono::Local;
@@ -18,7 +18,7 @@ pub struct NewEventMessage {
     pub events: Vec<NewEvent>,
 }
 
-impl Message for NewEventMessage {
+impl MessageContents for NewEventMessage {
     fn process(&self, addr: String, producer: FutureProducer<EmptyContext>, topic: String) {
         for raw_event in self.events.iter() {
             let event = Event {
