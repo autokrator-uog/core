@@ -109,7 +109,7 @@ pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) -> Result<
                             match parsed_message {
                                 Ok(m) => {
                                     info!("Processing producer message from {:?}", addr);
-                                    if let Err(e) = m.process(addr, state.producer, state.topic) {
+                                    if let Err(e) = m.process(addr, &state) {
                                         error!("Error occurred when processing message: {:?}", e);
                                     }
                                 },

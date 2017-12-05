@@ -17,6 +17,8 @@ extern crate serde_json;
 extern crate rdkafka;
 extern crate websocket;
 
+extern crate sha1;
+
 mod err;
 mod server;
 mod state;
