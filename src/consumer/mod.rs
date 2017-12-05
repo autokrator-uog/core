@@ -39,7 +39,7 @@ mod tests {
                             "account": 3847,
                             "amount": 3
                         }
-                  }"#;
+                   }"#;
 
         let parsed = parse_message(data.to_string());
         assert!(parsed.is_ok());
@@ -63,7 +63,7 @@ mod tests {
                               "+44 1234567",
                               "+44 2345678"
                         ]
-                  }"#;
+                   }"#;
         let parsed = parse_message(data.to_string());
 
         assert!(parsed.is_err());

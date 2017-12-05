@@ -26,7 +26,7 @@ A query message is used to indicate to the event bus that the user wants every m
 ```json
 {
   "message_type": "query",
-  "event_type": [
+  "event_types": [
     "deposit"
   ],
   "since": "2010-06-09T15:20:00-07:00"
