@@ -55,6 +55,14 @@ pub enum ErrorKind {
     #[fail(display = "Invalid connection")]
     InvalidConnection,
 
+    #[fail(display = "Unable to send receipt on send channel")]
+    ReceiptOnSendChannel,
+
+    #[fail(display = "Unable to serialize JSON for hash computation")]
+    JsonSerializationForHash,
+    #[fail(display = "Unable to serialize JSON for receipt")]
+    JsonSerializationForReceipt,
+
     #[fail(display = "Received Kafka message with no payload")]
     KafkaMessageWithNoPayload,
 }

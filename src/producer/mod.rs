@@ -5,15 +5,13 @@ mod register;
 use self::new::NewEventMessage;
 use self::query::QueryMessage;
 use self::register::RegisterMessage;
+use state::EventLoopState;
 
 use err::{ErrorKind, Result};
 use failure::ResultExt;
 
 use std::str::from_utf8;
 use serde_json::{from_str, Value};
-
-use rdkafka::client::EmptyContext;
-use rdkafka::producer::FutureProducer;
 use websocket::message::OwnedMessage;
 
 pub enum Message {
@@ -23,19 +21,17 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn process(&self, addr: String, producer: FutureProducer<EmptyContext>,
-                   topic: String) -> Result<()> {
+    pub fn process(&self, addr: String, state: &EventLoopState) -> Result<()> {
         match *self {
-            Message::NewEvent(ref e) => e.process(addr, producer, topic),
-            Message::Register(ref e) => e.process(addr, producer, topic),
-            Message::Query(ref e) => e.process(addr, producer, topic),
+            Message::NewEvent(ref e) => e.process(addr, state),
+            Message::Register(ref e) => e.process(addr, state),
+            Message::Query(ref e) => e.process(addr, state),
         }
     }
 }
 
 pub trait MessageContents {
-    fn process(&self, addr: String, producer: FutureProducer<EmptyContext>,
-               topic: String) -> Result<()>;
+    fn process(&self, addr: String, state: &EventLoopState) -> Result<()>;
 }
 
 /// Process a message that is received from a WebSocket connection.
