@@ -89,13 +89,13 @@ pub struct Server {
 
 impl Server {
     /// Start the websockets server given the arguments for the `server` subcommand.
-    pub fn start(bind_addr: &str, bus: Address<Bus>) -> Result<(), Error> {
+    pub fn launch(bind_addr: &str, bus: Address<Bus>) -> Result<(), Error> {
         // Create a websocket server instance bound to the address provided in arguments.
         let listener = WebsocketServer::bind(bind_addr, Arbiter::handle()).context(
             ErrorKind::UnableToBindWebsocketServer)?;
 
-        info!("starting websocket server on: {}", bind_addr);
-        let _: () = Server::create(|ctx| {
+        info!("starting websocket server on: address='{}'", bind_addr);
+        let _: () = Self::create(|ctx| {
             // Add the stream to the server.
             ctx.add_stream(listener.incoming()
                .map_err(|InvalidConnection { error, ..}| {
@@ -107,7 +107,7 @@ impl Server {
                }));
 
             // Return a instance of Server from closure.
-            Server { bus: bus }
+            Self { bus: bus }
         });
 
         Ok(())

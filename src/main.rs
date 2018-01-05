@@ -20,10 +20,11 @@ mod bus;
 mod consumer;
 mod error;
 mod messages;
+mod schemas;
 mod server;
 mod session;
 
-use actix::{Actor, Address, System};
+use actix::{Address, System};
 use colored::*;
 use clap::{Arg, ArgMatches, App, AppSettings, SubCommand};
 use failure::Error;
@@ -79,7 +80,11 @@ fn main() {
     logging(&matches);
 
     match matches.subcommand() {
-        ("server", Some(arguments)) => start_server(&arguments).unwrap(),
+        ("server", Some(arguments)) => {
+            if let Err(e) = start_server(&arguments) {
+                error!("failed to start server: error='{}'", e);
+            }
+        },
         _ => { }
     };
 }
@@ -89,20 +94,16 @@ fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
 
     // Create the event bus actor, we'll pass this to the websocket server actor
     // and the consumer actor so that they can send it things.
-    let bus: Address<_> = Bus::default().start();
+    let brokers = arguments.value_of("brokers").ok_or(ErrorKind::MissingBrokersArgument)?;
+    let topic = arguments.value_of("topic").ok_or(ErrorKind::MissingTopicArgument)?;
+    let bus: Address<_> = Bus::launch(brokers, topic)?;
 
     // Start WebSocket server.
     let addr = arguments.value_of("bind").ok_or(ErrorKind::MissingBindArgument)?;
-    if let Err(e) = Server::start(addr, bus.clone()) {
-        error!("failed to start websocket server: {}", e);
-    }
+    Server::launch(addr, bus.clone())?;
 
-    let brokers = arguments.value_of("brokers").ok_or(ErrorKind::MissingBrokersArgument)?;
     let group = arguments.value_of("group").ok_or(ErrorKind::MissingGroupArgument)?;
-    let topic = arguments.value_of("topic").ok_or(ErrorKind::MissingTopicArgument)?;
-    if let Err(e) = Consumer::start(brokers, group, topic, bus.clone()) {
-        error!("failed to start websocket server: {}", e);
-    }
+    Consumer::launch(brokers, group, topic, bus.clone())?;
 
     system.run();
     Ok(())

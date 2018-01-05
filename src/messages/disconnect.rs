@@ -17,11 +17,11 @@ impl ResponseType for Disconnect {
 impl Handler<Disconnect> for Bus {
     fn handle(&mut self, message: Disconnect,
               _: &mut Context<Self>) -> Response<Self, Disconnect> {
-        info!("removing session from broker: {}", message.addr);
+        info!("removing session from bus: client='{}'", message.addr);
         if let Some(_) = self.sessions.remove(&message.addr) {
-            info!("removed session from broker: {}", message.addr);
+            info!("removed session from bus: client='{}'", message.addr);
         } else {
-            warn!("failed to remove session from broker: {}", message.addr);
+            warn!("failed to remove session from bus: client='{}'", message.addr);
         }
         Self::empty()
     }

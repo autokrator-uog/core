@@ -19,9 +19,9 @@ impl ResponseType for Connect {
 impl Handler<Connect> for Bus {
     fn handle(&mut self, message: Connect, _: &mut Context<Self>) -> Response<Self, Connect> {
         if let Some(_) = self.sessions.insert(message.addr, message.session) {
-            info!("session updated in broker: {}", message.addr);
+            info!("session updated in bus: client='{}'", message.addr);
         } else {
-            info!("new session added to broker: {}", message.addr);
+            info!("new session added to bus: client='{}'", message.addr);
         }
         Self::empty()
     }

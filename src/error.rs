@@ -13,9 +13,11 @@ pub struct Error {
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ErrorKind {
     #[fail(display = "Unable to create Kafka consumer")]
-    KafkaConsumerCreationFailure,
+    KafkaConsumerCreation,
+    #[fail(display = "Unable to create Kafka producer")]
+    KafkaProducerCreation,
     #[fail(display = "Unable to subscribe to Kafka topic")]
-    KafkaConsumerSubscriptionFailure,
+    KafkaConsumerSubscription,
     #[fail(display = "Received error from Kafka subscription")]
     KafkaErrorReceived,
 
@@ -23,20 +25,44 @@ pub enum ErrorKind {
     UnableToBindWebsocketServer,
     #[fail(display = "Invalid websocket connection accepted")]
     InvalidWebsocketConnection,
+    #[fail(display = "Failed to send message on websocket connection")]
+    SendOnWebsocket,
 
-    #[fail(display = "No bind argument was provided. This is a bug, there should be a default.")]
+    #[fail(display = "No bind argument was provided. This is a bug, there should be a default")]
     MissingBindArgument,
-    #[fail(display = "No brokers argument was provided. This is a bug, there should be a default.")]
+    #[fail(display = "No brokers argument was provided. This is a bug, there should be a default")]
     MissingBrokersArgument,
-    #[fail(display = "No group argument was provided. This is a bug, there should be a default.")]
+    #[fail(display = "No group argument was provided. This is a bug, there should be a default")]
     MissingGroupArgument,
-    #[fail(display = "No topic argument was provided. This is a bug, there should be a default.")]
+    #[fail(display = "No topic argument was provided. This is a bug, there should be a default")]
     MissingTopicArgument,
 
     #[fail(display = "Encoding failure in websocket codec wrapper")]
     WebsocketCodecWrapperEncoding,
     #[fail(display = "Decoding failure in websocket codec wrapper")]
     WebsocketCodecWrapperDecoding,
+
+    #[fail(display = "Failed to parse bytes as UTF8 string")]
+    ParseBytesAsUtf8,
+    #[fail(display = "Received invalid message type over websockets")]
+    InvalidWebsocketMessageType,
+    #[fail(display = "Invalid JSON received on websockets")]
+    ParseJsonFromWebsockets,
+    #[fail(display = "Invalid JSON received on Kafka")]
+    ParseJsonFromKafka,
+    #[fail(display = "No message type in JSON from websockets")]
+    NoMessageTypeFromWebsockets,
+
+    #[fail(display = "Failed to serialize value to json for hashing")]
+    SerializeJsonForHashing,
+    #[fail(display = "Failed to serialize value to json for sending")]
+    SerializeJsonForSending,
+
+    #[fail(display = "Message from Kafka with no payload")]
+    KafkaMessageWithNoPayload,
+
+    #[fail(display = "Invalid JSON received in new event message")]
+    ParseNewEventMessage,
 }
 
 impl Error {

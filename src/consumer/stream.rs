@@ -104,7 +104,7 @@ fn poll_loop<C: ConsumerContext>(
         match future_sender.wait() {
             Ok(new_sender) => curr_sender = new_sender,
             Err(e) => {
-                debug!("sender not available: {:?}", e);
+                debug!("sender not available: sender='{}'", e);
                 break;
             }
         };
@@ -188,7 +188,7 @@ impl<C: ConsumerContext> StreamConsumer<C> {
             self.should_stop.store(true, Ordering::Relaxed);
             match handle.join() {
                 Ok(()) => trace!("polling stopped"),
-                Err(e) => warn!("failure while terminating thread: {:?}", e),
+                Err(e) => warn!("failure while terminating thread: error='{:?}'", e),
             };
         }
     }
