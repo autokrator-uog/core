@@ -1,36 +1,38 @@
-#[macro_use] extern crate log;
+extern crate actix;
+extern crate bytes;
 extern crate chrono;
 #[macro_use] extern crate clap;
 extern crate colored;
-extern crate fern;
-
 #[macro_use] extern crate failure;
-
+extern crate fern;
 extern crate futures;
-extern crate futures_cpupool;
-extern crate tokio_core;
-
+#[macro_use] extern crate log;
+extern crate rdkafka;
 extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate serde_derive;
-
-extern crate rdkafka;
+extern crate sha1;
+extern crate tokio_core;
+extern crate tokio_io;
 extern crate websocket;
 
-extern crate sha1;
-
-mod err;
-mod server;
-mod state;
-mod producer;
+mod bus;
 mod consumer;
-mod common;
+mod error;
+mod messages;
+mod server;
+mod session;
 
+use actix::{Actor, Address, System};
 use colored::*;
 use clap::{Arg, ArgMatches, App, AppSettings, SubCommand};
+use failure::Error;
 use log::{LogLevel, LogLevelFilter};
 
-use server::bootstrap;
+use bus::Bus;
+use consumer::Consumer;
+use error::ErrorKind;
+use server::Server;
 
 fn main() {
     let matches = App::new(crate_name!())
@@ -38,28 +40,11 @@ fn main() {
         .version(crate_version!())
         .author(crate_authors!())
         .about(crate_description!())
-        .arg(Arg::with_name("bind")
-             .short("b")
-             .long("bind")
-             .help("Host and port to bind websocket server to")
-             .default_value("localhost:8081")
-             .takes_value(true))
-        .arg(Arg::with_name("brokers")
-             .long("broker")
-             .help("Broker list in Kafka format")
-             .default_value("localhost:9092")
-             .takes_value(true))
-        .arg(Arg::with_name("group")
-             .short("g")
-             .long("group")
-             .help("Consumer group name")
-             .default_value(crate_name!())
-             .takes_value(true))
         .arg(Arg::with_name("log-level")
              .short("l")
              .long("log-level")
              .help("Log level")
-             .default_value("debug")
+             .default_value("info")
              .possible_values(&["off", "trace", "debug", "info", "warn", "error"])
              .takes_value(true))
         .subcommand(SubCommand::with_name("server")
@@ -72,23 +57,55 @@ fn main() {
                          .help("Topic to send and receive messages on")
                          .default_value("sed-instance-1")
                          .takes_value(true))
+                    .arg(Arg::with_name("bind")
+                         .short("b")
+                         .long("bind")
+                         .help("Host and port to bind websocket server to")
+                         .default_value("localhost:8081")
+                         .takes_value(true))
+                    .arg(Arg::with_name("brokers")
+                         .long("broker")
+                         .help("Broker list in Kafka format")
+                         .default_value("localhost:9092")
+                         .takes_value(true))
+                    .arg(Arg::with_name("group")
+                         .short("g")
+                         .long("group")
+                         .help("Consumer group name")
+                         .default_value(crate_name!())
+                         .takes_value(true))
         ).get_matches();
 
     logging(&matches);
 
     match matches.subcommand() {
-        ("server", Some(sub)) => {
-            let bind = matches.value_of("bind").unwrap();
-            let brokers = matches.value_of("brokers").unwrap();
-            let group = matches.value_of("group").unwrap();
-            let topic = sub.value_of("topic").unwrap();
-
-            if let Err(err) = bootstrap(bind, brokers, group, topic) {
-                error!("An error occurred while starting the server: {:?}", err);
-            }
-        },
+        ("server", Some(arguments)) => start_server(&arguments).unwrap(),
         _ => { }
     };
+}
+
+fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
+    let system = System::new("event-bus");
+
+    // Create the event bus actor, we'll pass this to the websocket server actor
+    // and the consumer actor so that they can send it things.
+    let bus: Address<_> = Bus::default().start();
+
+    // Start WebSocket server.
+    let addr = arguments.value_of("bind").ok_or(ErrorKind::MissingBindArgument)?;
+    if let Err(e) = Server::start(addr, bus.clone()) {
+        error!("failed to start websocket server: {}", e);
+    }
+
+    let brokers = arguments.value_of("brokers").ok_or(ErrorKind::MissingBrokersArgument)?;
+    let group = arguments.value_of("group").ok_or(ErrorKind::MissingGroupArgument)?;
+    let topic = arguments.value_of("topic").ok_or(ErrorKind::MissingTopicArgument)?;
+    if let Err(e) = Consumer::start(brokers, group, topic, bus.clone()) {
+        error!("failed to start websocket server: {}", e);
+    }
+
+    system.run();
+    Ok(())
 }
 
 fn logging(matches: &ArgMatches) {
