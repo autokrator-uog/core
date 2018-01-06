@@ -1,265 +1,154 @@
-use err::{ErrorKind, Result};
-use failure::{Fail, ResultExt};
+use std::net::SocketAddr;
 
-use futures::{Future, Sink, Stream};
-use tokio_core::reactor::{Handle, Remote, Core};
-
-use common::Event;
-use state::{EventLoopState, ServerState};
-use consumer;
-use producer;
-
-use std::fmt::Debug;
-use std::str::from_utf8;
-
-use rdkafka::Message;
-use rdkafka::message::OwnedMessage as KafkaOwnedMessage;
-
-use websocket::message::OwnedMessage as WsOwnedMessage;
-use websocket::async::Server;
+use actix::{Actor, Address, Arbiter, AsyncContext, Context, FramedActor, Handler, StreamHandler};
+use actix::{Response, ResponseType};
+use bytes::BytesMut;
+use failure::{Error, Fail, ResultExt};
+use tokio_core::net::TcpStream;
+use tokio_io::codec::{Decoder, Encoder, Framed};
+use websocket::async::Server as WebsocketServer;
+use websocket::async::futures::{Future, Stream};
+use websocket::codec::ws::MessageCodec;
+use websocket::message::OwnedMessage;
 use websocket::server::InvalidConnection;
+use websocket::server::upgrade::async::Upgrade;
 
-pub fn bootstrap(bind: &str, brokers: &str, group: &str, topic: &str) -> Result<()> {
-    // Create our event loop.
-    let mut core = Core::new().context(ErrorKind::EventLoopCreationFailure)?;
+use bus::Bus;
+use error::ErrorKind;
+use session::Session;
 
-    // Create a handle for spawning futures from the main thread.
-    let handle = core.handle();
-    let remote = core.remote();
+/// `WsMessage` is a wrapper type that allows us to implement `ResponseType` for Websockets
+/// OwnedMessage. It is created by the `Codec` encoder/decoder.
+#[derive(Debug)]
+pub struct WsMessage(pub OwnedMessage);
 
-    // Create all of the required state.
-    let ServerState {state, receive_channel_in, send_channel_in, consumer } =
-        ServerState::new(brokers, group, topic)?;
+impl ResponseType for WsMessage {
+    type Item = ();
+    type Error = ();
+}
 
-    // Create the websocket server and add it on the event loop.
-    let server = Server::bind(bind, &handle).context(ErrorKind::WebsocketServerBindingFailure)?;
-    info!("Running websocket server on {:?}", bind);
+/// We create a wrapper around the `MessageCodec` from the websockets library so that we can
+/// encode/decode to/from a wrapper message type that implements `ResponseType`.
+pub struct Codec {
+    inner: MessageCodec<OwnedMessage>,
+}
 
-    // We must clone the state into state_inner so that when it is captured by the
-    // move closure, we still have the state for use outside. We will see this pattern
-    // throughout.
-    let state_inner = state.clone();
-    let connection_handler = server.incoming()
-        .map_err(|InvalidConnection { error, .. }| error.context(ErrorKind::InvalidConnection))
-        .for_each(move |(upgrade, addr)| {
-            let state = state_inner.clone();
-            let handle_inner = handle.clone();
+impl Codec {
+    /// Create a codec from the `MessageCodec` that we will use for encoding and decoding.
+    fn new(message_codec: MessageCodec<OwnedMessage>) -> Codec {
+        Codec { inner: message_codec }
+    }
+}
 
-            // Accept the websocket connection.
-            let f = upgrade.accept().and_then(move |(framed, _)| {
-                // Split the channels up into send (sink) and receive (stream).
-                let (sink, stream) = framed.split();
-                // Add the (addr, stream) mapping to the receive_channel_out. We'll
-                // be able to loop over receive_channel_in to spawn threads that will
-                // handle the incoming messages.
-                info!("Accepted connection from {:?}", addr);
-                let f = state.receive_channel_out.send((format!("{:?}", addr), stream));
-                spawn_future(f, "Send stream to connection pool", &handle_inner);
+impl Decoder for Codec {
+    type Item = WsMessage;
+    type Error = Error;
 
-                // Add the sink to the HashMap so that we can get it when we want
-                // to send a message to the client.
-                match state.connections.try_write() {
-                    Ok(mut m) => {
-                        m.insert(format!("{:?}", addr), sink);
-                        ()
-                    },
-                    Err(_) => warn!("RwLock has been poisoned!"),
-                }
-                Ok(())
-            });
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        // Decode src using the inner decoder and then wrap the result in a `Message`.
+        match self.inner.decode(src).context(ErrorKind::WebsocketCodecWrapperDecoding)? {
+            Some(message) => Ok(Some(WsMessage(message))),
+            None => Ok(None)
+        }
+    }
 
-            spawn_future(f, "Handle new connection", &handle);
-            Ok(())
+    fn decode_eof(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        self.decode(src)
+    }
+}
+
+impl Encoder for Codec {
+    type Item = WsMessage;
+    type Error = Error;
+
+    fn encode(&mut self, item: Self::Item, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        // Encode the OwnedMessage from inside the Message into
+        // dst using the inner decoder.
+        self.inner.encode(item.0, dst).context(
+            ErrorKind::WebsocketCodecWrapperEncoding).map_err(Error::from)
+    }
+}
+
+/// `Connection` is a wrapper type that allows us to implement `ResponseType` for the result of
+/// `listener.incoming()` on the websocket server.
+pub struct Connection {
+    pub upgrade: Upgrade<TcpStream>,
+    pub addr: SocketAddr,
+}
+
+impl ResponseType for Connection {
+    type Item = ();
+    type Error = ();
+}
+
+/// The server actor handles incoming Websocket connections and creates a session for each
+/// incoming connection.
+pub struct Server {
+    bus: Address<Bus>,
+}
+
+impl Server {
+    /// Start the websockets server given the arguments for the `server` subcommand.
+    pub fn launch(bind_addr: &str, bus: Address<Bus>) -> Result<(), Error> {
+        // Create a websocket server instance bound to the address provided in arguments.
+        let listener = WebsocketServer::bind(bind_addr, Arbiter::handle()).context(
+            ErrorKind::UnableToBindWebsocketServer)?;
+
+        info!("starting websocket server on: address='{}'", bind_addr);
+        let _: () = Self::create(|ctx| {
+            // Add the stream to the server.
+            ctx.add_stream(listener.incoming()
+               .map_err(|InvalidConnection { error, ..}| {
+                   // Wrap error in our own error type.
+                   Error::from(error.context(ErrorKind::InvalidWebsocketConnection))
+               }).map(|(upgrade, addr)| {
+                   // Wrap connections in our wrapper type that implements ResponseType.
+                   Connection { upgrade: upgrade, addr: addr }
+               }));
+
+            // Return a instance of Server from closure.
+            Self { bus: bus }
         });
 
-    let state_inner = state.clone();
-    let remote_inner = remote.clone();
-    // Spawn a handler for outgoing clients so that this doesn't block the main thread.
-    let receive_handler = state.cpu_pool.spawn_fn(|| {
-        receive_channel_in.for_each(move |(addr, stream)| {
-            let state = state_inner.clone();
-            let remote = remote_inner.clone();
-
-            // For each client, spawn a new thread that will process everything we receive from
-            // it.
-            remote.spawn(move |handle| {
-                let state = state.clone();
-                let remote = handle.remote().clone();
-                let addr = addr.clone();
-
-                stream.for_each(move |msg| {
-                    let state = state.clone();
-                    let remote = remote.clone();
-                    let addr = addr.clone();
-
-                    if let WsOwnedMessage::Close(_) = msg {
-                        info!("Removing connection {:?} from clients", &addr);
-                        match state.connections.try_write() {
-                            Ok(mut m) => {
-                                if let None = m.remove(&addr) {
-                                    warn!("Unable to remove connection from map");
-                                }
-                            },
-                            Err(_) => warn!("RwLock has been poisoned!"),
-                        }
-                    } else {
-                        remote.spawn(move |_| {
-                            info!("Parsing producer message from {:?}", addr);
-                            let parsed_message = producer::parse_message(msg);
-                            match parsed_message {
-                                Ok(m) => {
-                                    info!("Processing producer message from {:?}", addr);
-                                    if let Err(e) = m.process(addr, &state) {
-                                        error!("Error occurred when processing message: {:?}", e);
-                                    }
-                                },
-                                Err(e) => {
-                                    warn!("Unable to parse message from websocket: {:?}", e);
-                                }
-                            }
-                            Ok(())
-                        });
-                    }
-
-                    Ok(())
-                }).map_err(|e| {
-                    error!("Error in websocket stream: {:?}", e);
-                    ()
-                })
-            });
-
-            Ok(())
-        })
-    });
-
-    let state_inner = state.clone();
-    let remote_inner = remote.clone();
-    let send_handler = state.cpu_pool.spawn_fn(move || {
-        let state = state_inner.clone();
-        let remote = remote_inner.clone();
-
-        // send_channel_in contains the messages that we're queuing up to
-        // send to the client at addr.
-        send_channel_in.for_each(move |(addr, msg): (String, String)| {
-            let state = state.clone();
-            let remote = remote.clone();
-
-            info!("Removing {:?} from connections to send", addr);
-            let sink_result = match state.connections.try_write() {
-                Ok(mut m) => m.remove(&addr),
-                Err(_) => {
-                    warn!("RwLock has been poisoned!");
-                    None
-                },
-            };
-
-            if let Some(sink) = sink_result {
-                info!("Sending {:?} to {:?}", msg, addr);
-                let f = sink.send(WsOwnedMessage::Text(msg))
-                            .and_then(move |sink| {
-                                info!("Re-adding {:?} to connections after send", addr);
-                                match state.connections.try_write() {
-                                    Ok(mut m) => {
-                                        m.insert(addr, sink);
-                                        ()
-                                    },
-                                    Err(_) => warn!("RwLock has been poisoned!"),
-                                }
-                                Ok(())
-                            });
-
-                remote.spawn(move |handle| {
-                    spawn_future(f, "Send message on websocket connection", handle);
-                    Ok(())
-                });
-            } else {
-                warn!("Unable to find client addr in connections map: {:?}", addr);
-            }
-
-            Ok(())
-        })
-    });
-
-    let state_inner = state.clone();
-    let remote_inner = remote.clone();
-    // Start watching for messages in subscribed topics.
-    let consumer_handler = consumer.start()
-        .filter_map(|result| {
-            // Discard any errors from the Kafka subscription.
-            match result {
-                Ok(v) => Some(v),
-                Err(e) => {
-                    error!("Kafka error: {:?}", e);
-                    None
-                }
-            }
-        }).for_each(move |msg| {
-            let state = state_inner.clone();
-            let remote = remote_inner.clone();
-            let owned_message = msg.detach();
-
-            let state = state.clone();
-            let remote = remote.clone();
-
-            let parsed_message = parse_consumer_payload(owned_message);
-            match parsed_message {
-                Ok(m) => send_event_to_clients(&state, remote, m),
-                Err(e) => warn!("Unable to parse message from Kafka: {:?}", e),
-            }
-
-            Ok(())
-        });
-
-    let handlers = connection_handler.select2(receive_handler.select2(
-            send_handler.select2(consumer_handler)));
-    core.run(handlers)
-        .map(|_| ())
-        .map_err(|_| ErrorKind::EventLoopRunFailure)
-        .map_err(From::from)
+        Ok(())
+    }
 }
 
-fn send_event_to_clients(state: &EventLoopState, remote: Remote, message: Event) {
-    match state.connections.try_read() {
-        Ok(map) => {
-            // Loop over the clients.
-            for (addr, _) in map.iter() {
-                let state = state.clone();
-                let parsed_message = message.clone();
-
-                info!("Processing consumer message to {:?}", addr);
-                let processed_message = consumer::process_event(parsed_message, addr);
-
-                match processed_message {
-                    Ok(m) => {
-                        let f = state.send_channel_out.send((addr.to_string(), m));
-
-                        remote.spawn(move |handle| {
-                            spawn_future(f, "Send message to write handler", handle);
-                            Ok(())
-                        });
-                    },
-                    Err(e) => warn!("Unable to process message from Kafka: {:?}", e),
-                }
-            }
-        },
-        Err(_) => warn!("RwLock has been poisoned!"),
-    };
+impl Actor for Server {
+    type Context = Context<Self>;
 }
 
-fn parse_consumer_payload(owned_message: KafkaOwnedMessage) -> Result<Event> {
-    info!("Retrieving consumer payload");
-    let payload = owned_message.payload().ok_or(ErrorKind::KafkaMessageWithNoPayload)?;
-
-    info!("Converting consumer payload to string");
-    let msg = from_utf8(payload).context(ErrorKind::InvalidUtf8Bytes)?;
-
-    info!("Parsing consumer payload as message");
-    consumer::parse_message(msg.to_string())
+// By implementing StreamHandler, we can add streams to this actor which will trigger the
+// event functions below.
+impl StreamHandler<Connection, Error> for Server {
+    fn started(&mut self, _ctx: &mut Context<Self>) { info!("websocket server started"); }
+    fn finished(&mut self, _ctx: &mut Context<Self>) { info!("websocket server finished"); }
 }
 
-fn spawn_future<F, I, E>(f: F, desc: &'static str, handle: &Handle)
-    where F: Future<Item = I, Error = E> + 'static, E: Debug
-{
-    handle.spawn(f.map_err(move |e| error!("Error in {}: '{:?}'", desc, e))
-                 .map(move |_| info!("{}: Finished.", desc)));
+impl Handler<Connection, Error> for Server {
+    /// Handle an incoming connection and create a session.
+    fn handle(&mut self, conn: Connection, _: &mut Context<Self>) -> Response<Self, Connection> {
+        // This runs on its own thread so we can just wait on the future from accepting the
+        // connection upgrade.
+        if let Ok((framed, _)) = conn.upgrade.accept().wait() {
+            // For the same reason that we have the Connection type, we need a wrapper type
+            // around the MessageCodec from the websockets library so that we can implement
+            // ResponseType on OwnedMessage for the Session actor.
+            //
+            // We do this by splitting the frame into the stream and the codec and create an
+            // instance of our wrapper codec before reconstructing the frame.
+            let (parts, codec) = framed.into_parts_and_codec();
+            let codec = Codec::new(codec);
+            let framed = Framed::from_parts(parts, codec);
+
+            // Spawn a session actor from frame and ensure the session has access to the Bus.
+            let bus = self.bus.clone();
+            let _: () = Session::new(conn.addr, bus).from_framed(framed);
+        } else {
+            warn!("websocket connection upgrade failed");
+        }
+
+        // No need for inter-actor communication so we can return a unit response.
+        Self::empty()
+    }
 }

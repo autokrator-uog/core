@@ -1,74 +1,132 @@
-use common::Event;
+mod stream;
 
-use err::{ErrorKind, Result};
-use failure::ResultExt;
+use std::str::from_utf8;
 
-use serde_json::{from_str, to_string};
+use actix::{Actor, Address, AsyncContext, Context, Handler, StreamHandler, Response, ResponseType};
+use failure::{Error, ResultExt};
+use futures::stream::Stream;
+use rdkafka::Message;
+use rdkafka::config::ClientConfig;
+use rdkafka::consumer::Consumer as ConsumerTrait;
+use rdkafka::message::OwnedMessage;
+use serde_json::{from_str, to_string_pretty};
 
-/// Parse a message from Kafka.
-///
-/// If `None` is returned, it will not be sent to any WebSocket clients.
-pub fn parse_message(raw_message: String) -> Result<Event> {
-    info!("Parsing message from Kafka: {:?}", raw_message);
-    from_str(&raw_message).context(ErrorKind::KafkaJsonParse).map_err(From::from)
+use bus::Bus;
+use consumer::stream::StreamConsumer;
+use error::ErrorKind;
+use messages;
+use schemas;
+
+/// `KafkaMessage` is a wrapper type that allows us to implement `ResponseType` for Kafka's
+/// OwnedMessage. It is created by the `Codec` encoder/decoder.
+#[derive(Debug)]
+struct KafkaMessage(pub OwnedMessage);
+
+impl ResponseType for KafkaMessage {
+    type Item = ();
+    type Error = ();
 }
 
-/// Decide whether a message should be sent to a client.
-///
-/// If `None` is returned, it will not be sent to any WebSocket clients.
-pub fn process_event(mut event: Event, to: &str) -> Result<String> {
-    // Override type as now we're sending an event, not receiving a new one
-    event.message_type = "event".to_string();
-
-    info!("Sending message to {:?}: {:?}", to, event.data);
-    to_string(&event).context(ErrorKind::ConsumerProcessingFailure).map_err(From::from)
+/// The consumer actor handles incoming messages from Kafka and forwards them using the correct
+/// message on the Bus.
+pub struct Consumer {
+    bus: Address<Bus>
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+impl Consumer {
+    /// Start the Kafka listener given the arguments for the `server` subcommand.
+    pub fn launch(brokers: &str, group: &str, topic: &str,
+                 bus: Address<Bus>) -> Result<(), Error> {
+        info!("starting kafka listener: brokers='{}' group='{}'", brokers, group);
+        let consumer = ClientConfig::new()
+            .set("bootstrap.servers", brokers)
+            .set("group.id", group)
+            .set("enable.partition.eof", "false")
+            .set("session.timeout.ms", "6000")
+            .set("enable.auto.commit", "false")
+            .create::<StreamConsumer<_>>()
+            .context(ErrorKind::KafkaConsumerCreation)?;
+        info!("subscribing to topic on kafka listener: topic='{}'", topic);
+        consumer.subscribe(&[topic]).context(ErrorKind::KafkaConsumerSubscription)?;
 
-    #[test]
-    fn parse_valid_message() {
-        let data = r#"{
-                        "message_type": "event",
-                        "timestamp": "Wed, 9 Jun 2010 22:20:00 UTC",
-                        "addr": "V4(127.0.0.1:45938)",
-                        "event_type": "deposit",
-                        "data": {
-                            "account": 3847,
-                            "amount": 3
+        let _: () = Self::create(move |ctx| {
+            ctx.add_stream(consumer.start()
+                .filter_map(|result| {
+                    match result {
+                        Ok(m) => Some(m),
+                        Err(e) => {
+                            error!("kafka stream: error='{}'", e);
+                            None
                         }
-                   }"#;
+                    }
+                }).map(|msg| {
+                    KafkaMessage(msg)
+                }).map_err(|_| {
+                    Error::from(ErrorKind::KafkaErrorReceived)
+                }));
 
-        let parsed = parse_message(data.to_string());
-        assert!(parsed.is_ok());
+            Self { bus: bus }
+        });
 
-        if let Ok(message) = parsed {
-            assert_eq!(message.message_type, "event");
-            assert_eq!(message.timestamp, "Wed, 9 Jun 2010 22:20:00 UTC");
-            assert_eq!(message.addr, "V4(127.0.0.1:45938)");
-            assert_eq!(message.event_type, "deposit");
-            assert_eq!(message.data["account"], 3847);
-            assert_eq!(message.data["amount"], 3);
-        }
+        Ok(())
     }
 
-    #[test]
-    fn parse_invalid_message() {
-        let data = r#"{
-                        "name": "John Doe",
-                        "age": 43,
-                        "phones": [
-                              "+44 1234567",
-                              "+44 2345678"
-                        ]
-                   }"#;
-        let parsed = parse_message(data.to_string());
+    fn process_message(&mut self, message: KafkaMessage) -> Result<(), Error> {
+        debug!("starting processing message from kafka");
+        let contents = self.get_message_contents(message)?;
 
-        assert!(parsed.is_err());
-        if let Err(e) = parsed {
-            assert_eq!(e.kind(), ErrorKind::KafkaJsonParse);
+        let parsed: schemas::kafka::EventMessage = from_str(&contents).context(
+            ErrorKind::ParseJsonFromKafka)?;
+        debug!("parsed message from kafka");
+        info!("received message on kafka: message=\n{}",
+              to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
+
+        let message = schemas::outgoing::EventMessage {
+            message_type: "event".to_owned(),
+            event_type: parsed.event_type,
+            timestamp: parsed.timestamp,
+            sender: parsed.sender,
+            data: parsed.data,
+        };
+
+        self.bus.send(messages::SendToAllClients(message));
+        debug!("finished processing message from kafka");
+        Ok(())
+    }
+
+    fn get_message_contents(&mut self, message: KafkaMessage) -> Result<String, Error> {
+        let message = message.0;
+
+        debug!("retrieving payload from kafka message");
+        let payload = message.payload().ok_or(ErrorKind::KafkaMessageWithNoPayload)?;
+
+        debug!("converting payload to string");
+        let converted = from_utf8(payload).context(ErrorKind::ParseBytesAsUtf8)?;
+
+        Ok(converted.to_string())
+    }
+}
+
+impl Actor for Consumer {
+    type Context = Context<Self>;
+}
+
+// By implementing StreamHandler, we can add streams to this actor which will trigger the
+// event functions below.
+impl StreamHandler<KafkaMessage, Error> for Consumer {
+    fn started(&mut self, _ctx: &mut Context<Self>) { info!("consumer listener started"); }
+    fn finished(&mut self, _ctx: &mut Context<Self>) { info!("consumer listener finished"); }
+}
+
+impl Handler<KafkaMessage, Error> for Consumer {
+    /// Handle an incoming message from Kafka.
+    fn handle(&mut self, message: KafkaMessage,
+              _ctx: &mut Context<Self>) -> Response<Self, KafkaMessage> {
+        if let Err(e) = self.process_message(message) {
+            error!("processing message from kafka: error='{}'", e);
         }
+
+        // No need for inter-actor communication so we can return a unit response.
+        Self::empty()
     }
 }
