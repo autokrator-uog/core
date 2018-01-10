@@ -10,6 +10,7 @@ pub struct NewEventMessage {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Event {
     pub event_type: String,
+    pub correlation_id: usize,
     pub data: Value,
 }
 

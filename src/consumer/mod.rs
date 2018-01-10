@@ -87,6 +87,7 @@ impl Consumer {
             timestamp: parsed.timestamp,
             sender: parsed.sender,
             data: parsed.data,
+            correlation_id: parsed.correlation_id,
         };
 
         self.bus.send(messages::SendToAllClients(message));

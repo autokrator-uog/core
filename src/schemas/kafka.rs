@@ -8,6 +8,7 @@ pub struct EventMessage {
     pub event_type: String,
     pub timestamp: String,
     pub session_id: usize,
+    pub correlation_id: usize,
     pub sender: String,
     pub data: Value,
 }

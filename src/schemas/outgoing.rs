@@ -24,6 +24,7 @@ pub struct EventMessage {
     pub timestamp: String,
     pub sender: String,
     pub data: Value,
+    pub correlation_id: usize,
 }
 
 #[cfg(test)]

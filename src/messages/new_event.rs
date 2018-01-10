@@ -68,6 +68,7 @@ impl Bus {
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
                 data: raw_event.data.clone(),
+                correlation_id: raw_event.correlation_id,
                 session_id: message.session_id,
             };
 
