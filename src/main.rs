@@ -7,6 +7,7 @@ extern crate colored;
 extern crate fern;
 extern crate futures;
 #[macro_use] extern crate log;
+extern crate rand;
 extern crate rdkafka;
 extern crate serde;
 extern crate serde_json;

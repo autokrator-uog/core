@@ -17,14 +17,16 @@ use server::{Codec, WsMessage};
 pub struct Session {
     pub addr: SocketAddr,
     bus: Address<Bus>,
+    session_id: usize,
 }
 
 impl Session {
     /// Create a Session from a socket address and a bus actor.
-    pub fn new(addr: SocketAddr, bus: Address<Bus>) -> Self {
+    pub fn new(addr: SocketAddr, bus: Address<Bus>, session_id: usize) -> Self {
         Self {
             addr: addr,
             bus: bus,
+            session_id: session_id,
         }
     }
 
@@ -55,6 +57,7 @@ impl Session {
                     message: contents,
                     sender: (ctx.address(), self.addr),
                     bus: self.bus.clone(),
+                    session_id: self.session_id,
                 };
                 self.bus.send(new_event);
                 info!("sent new event message to bus");

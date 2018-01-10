@@ -18,6 +18,7 @@ pub struct NewEvent {
     pub message: String,
     pub sender: (Address<Session>, SocketAddr),
     pub bus: Address<Bus>,
+    pub session_id: usize,
 }
 
 impl ResponseType for NewEvent {
@@ -66,7 +67,8 @@ impl Bus {
                 timestamp: receipt.timestamp.clone(),
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
-                data: raw_event.data.clone()
+                data: raw_event.data.clone(),
+                session_id: message.session_id,
             };
 
             receipt.receipts.push(schemas::outgoing::Receipt {
