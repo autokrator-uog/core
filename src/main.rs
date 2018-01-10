@@ -20,10 +20,10 @@ extern crate websocket;
 mod bus;
 mod consumer;
 mod error;
-mod messages;
 mod schemas;
 mod server;
 mod session;
+mod signals;
 
 use actix::{Address, System};
 use colored::*;

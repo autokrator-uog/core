@@ -9,9 +9,9 @@ use sha1::Sha1;
 
 use bus::Bus;
 use error::ErrorKind;
-use messages::SendToClient;
 use schemas;
 use session::Session;
+use signals::SendToClient;
 
 /// The `NewEvent` message is sent to the Bus when new events are sent from websockets.
 pub struct NewEvent {
