@@ -39,6 +39,7 @@ mod event_tests {
                         "timestamp": "Wed, 9 Jun 2010 22:20:00 UTC",
                         "sender": "V4(127.0.0.1:45938)",
                         "event_type": "deposit",
+                        "correlation_id": 28374928374,
                         "data": {
                             "account": 3847,
                             "amount": 3
@@ -53,6 +54,7 @@ mod event_tests {
             assert_eq!(message.timestamp, "Wed, 9 Jun 2010 22:20:00 UTC");
             assert_eq!(message.sender, "V4(127.0.0.1:45938)");
             assert_eq!(message.event_type, "deposit");
+            assert_eq!(message.correlation_id, 28374928374);
             assert_eq!(message.data["account"], 3847);
             assert_eq!(message.data["amount"], 3);
         }

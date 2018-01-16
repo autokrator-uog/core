@@ -37,6 +37,7 @@ mod event_tests {
                         "events": [
                             {
                                 "event_type": "deposit",
+                                "correlation_id": 94859829321,
                                 "data": {
                                     "account": 837,
                                     "amount": 3
@@ -44,6 +45,7 @@ mod event_tests {
                             },
                             {
                                 "event_type": "withdrawal",
+                                "correlation_id": 94859829321,
                                 "data": {
                                     "account": 2837,
                                     "amount": 5
@@ -56,9 +58,11 @@ mod event_tests {
         assert!(parsed.is_ok());
         if let Ok(message) = parsed {
             assert_eq!(message.events[0].event_type, "deposit");
+            assert_eq!(message.events[0].correlation_id, 94859829321);
             assert_eq!(message.events[0].data["account"], 837);
             assert_eq!(message.events[0].data["amount"], 3);
             assert_eq!(message.events[1].event_type, "withdrawal");
+            assert_eq!(message.events[1].correlation_id, 94859829321);
             assert_eq!(message.events[1].data["account"], 2837);
             assert_eq!(message.events[1].data["amount"], 5);
         }
