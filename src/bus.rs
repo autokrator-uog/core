@@ -17,8 +17,19 @@ use session::Session;
 ///
 /// Handlers for different types of messages that the bus can handle are implemented in the
 /// messages module.
+
+pub enum RegisteredTypes {
+    All,
+    Some(Vec<String>),
+}
+
+pub struct SessionDetails {
+    pub address: Address<Session>,
+    pub registered_types: RegisteredTypes,
+}
+
 pub struct Bus {
-    pub sessions: HashMap<SocketAddr, Address<Session>>,
+    pub sessions: HashMap<SocketAddr, SessionDetails>,
     pub topic: String,
     pub producer: FutureProducer<EmptyContext>,
     pub couchbase_bucket: Bucket
