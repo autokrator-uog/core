@@ -14,8 +14,8 @@ use serde_json::{from_str, to_string_pretty};
 use bus::Bus;
 use consumer::stream::StreamConsumer;
 use error::ErrorKind;
-use messages;
 use schemas;
+use signals;
 
 /// `KafkaMessage` is a wrapper type that allows us to implement `ResponseType` for Kafka's
 /// OwnedMessage. It is created by the `Codec` encoder/decoder.
@@ -87,9 +87,10 @@ impl Consumer {
             timestamp: parsed.timestamp,
             sender: parsed.sender,
             data: parsed.data,
+            correlation_id: parsed.correlation_id,
         };
 
-        self.bus.send(messages::SendToAllClients(message));
+        self.bus.send(signals::SendToAllClients(message));
         debug!("finished processing message from kafka");
         Ok(())
     }

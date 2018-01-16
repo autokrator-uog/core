@@ -10,21 +10,23 @@ use websocket::message::OwnedMessage;
 
 use bus::Bus;
 use error::ErrorKind;
-use messages;
 use server::{Codec, WsMessage};
+use signals;
 
 /// Session contains the state pertaining to one connected client.
 pub struct Session {
     pub addr: SocketAddr,
     bus: Address<Bus>,
+    session_id: usize,
 }
 
 impl Session {
     /// Create a Session from a socket address and a bus actor.
-    pub fn new(addr: SocketAddr, bus: Address<Bus>) -> Self {
+    pub fn new(addr: SocketAddr, bus: Address<Bus>, session_id: usize) -> Self {
         Self {
             addr: addr,
             bus: bus,
+            session_id: session_id,
         }
     }
 
@@ -41,7 +43,7 @@ impl Session {
         match message_type {
             "query" => {
                 info!("sending query message to bus");
-                let query = messages::Query {
+                let query = signals::Query {
                     message: contents,
                     sender: ctx.address(),
                     bus: self.bus.clone(),
@@ -51,17 +53,18 @@ impl Session {
             },
             "new" => {
                 info!("sending new event message to bus");
-                let new_event = messages::NewEvent {
+                let new_event = signals::NewEvent {
                     message: contents,
                     sender: (ctx.address(), self.addr),
                     bus: self.bus.clone(),
+                    session_id: self.session_id,
                 };
                 self.bus.send(new_event);
                 info!("sent new event message to bus");
             },
             "register" => {
                 info!("sending register message to bus");
-                let register = messages::Register {
+                let register = signals::Register {
                     message: contents,
                     sender: ctx.address(),
                     bus: self.bus.clone(),
@@ -124,7 +127,7 @@ impl StreamHandler<WsMessage, Error> for Session {
         debug!("started session: client='{}'", self.addr);
 
         info!("sending connect message to bus");
-        let connect = messages::Connect {
+        let connect = signals::Connect {
             session: ctx.address(),
             addr: self.addr,
         };
@@ -137,7 +140,7 @@ impl StreamHandler<WsMessage, Error> for Session {
         debug!("finished session: client='{}'", self.addr);
 
         info!("sending disconnect message to bus");
-        let disconnect = messages::Disconnect {
+        let disconnect = signals::Disconnect {
             addr: self.addr,
         };
         self.bus.send(disconnect);
