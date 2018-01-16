@@ -7,6 +7,9 @@ use serde::Serialize;
 use serde_json::{from_str, to_string, to_string_pretty, Value};
 use sha1::Sha1;
 
+use couchbase::{Document, BinaryDocument};
+use futures::Future;
+
 use bus::Bus;
 use error::ErrorKind;
 use schemas;
@@ -37,6 +40,20 @@ impl Bus {
               event_type, self.topic, pretty_serialized);
         self.producer.send_copy::<String, String>(&self.topic, None, Some(&serialized),
                                                   Some(event_type), None, 1000);
+        Ok(())
+    }
+    
+    fn persist_to_couchbase<T: Serialize>(&mut self, event: &T, document_id: &str) -> Result<(), Error> {
+        let serialized = to_string(event).context(
+            ErrorKind::SerializeJsonForSending)?;
+        let pretty_serialized = to_string_pretty(event).context(
+            ErrorKind::SerializeJsonForSending)?;
+        
+        let document = BinaryDocument::create(document_id, None, Some(serialized.as_bytes().to_owned()), None);
+        
+        info!("saving event in couchbase: event=\n{}", pretty_serialized);
+        self.couchbase_bucket.upsert(document).wait().expect("Upsert failed!");
+        
         Ok(())
     }
 
@@ -72,12 +89,16 @@ impl Bus {
                 session_id: message.session_id,
             };
 
+            let hash = self.hash_json(event.data.clone())?;
+
             receipt.receipts.push(schemas::outgoing::Receipt {
-                checksum: self.hash_json(event.data.clone())?,
+                checksum: hash.clone(),
                 status: "success".to_string()
             });
 
             self.send_to_kafka(&event, &event.event_type)?;
+            
+            self.persist_to_couchbase(&event, &hash.clone().to_string())?;
         }
 
         info!("sending receipt to the client");

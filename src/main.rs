@@ -16,6 +16,7 @@ extern crate sha1;
 extern crate tokio_core;
 extern crate tokio_io;
 extern crate websocket;
+extern crate couchbase;
 
 mod bus;
 mod consumer;
@@ -76,6 +77,11 @@ fn main() {
                          .help("Consumer group name")
                          .default_value(crate_name!())
                          .takes_value(true))
+                    .arg(Arg::with_name("couchbase_host")
+                        .long("couchbase-host")
+                        .help("The hostname for the couchbase DB.")
+                        .default_value("couchbase.db")
+                        .takes_value(true))
         ).get_matches();
 
     logging(&matches);
@@ -97,7 +103,9 @@ fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
     // and the consumer actor so that they can send it things.
     let brokers = arguments.value_of("brokers").ok_or(ErrorKind::MissingBrokersArgument)?;
     let topic = arguments.value_of("topic").ok_or(ErrorKind::MissingTopicArgument)?;
-    let bus: Address<_> = Bus::launch(brokers, topic)?;
+    let couchbase_host = arguments.value_of("couchbase_host").ok_or(ErrorKind::MissingTopicArgument)?;
+    
+    let bus: Address<_> = Bus::launch(brokers, topic, couchbase_host)?;
 
     // Start WebSocket server.
     let addr = arguments.value_of("bind").ok_or(ErrorKind::MissingBindArgument)?;
