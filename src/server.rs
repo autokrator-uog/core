@@ -1,9 +1,11 @@
+use std::cell::RefCell;
 use std::net::SocketAddr;
 
 use actix::{Actor, Address, Arbiter, AsyncContext, Context, FramedActor, Handler, StreamHandler};
 use actix::{Response, ResponseType};
 use bytes::BytesMut;
 use failure::{Error, Fail, ResultExt};
+use rand::{self, Rng, ThreadRng};
 use tokio_core::net::TcpStream;
 use tokio_io::codec::{Decoder, Encoder, Framed};
 use websocket::async::Server as WebsocketServer;
@@ -85,6 +87,7 @@ impl ResponseType for Connection {
 /// incoming connection.
 pub struct Server {
     bus: Address<Bus>,
+    rng: RefCell<ThreadRng>,
 }
 
 impl Server {
@@ -107,7 +110,10 @@ impl Server {
                }));
 
             // Return a instance of Server from closure.
-            Self { bus: bus }
+            Self {
+                bus: bus,
+                rng: RefCell::new(rand::thread_rng()),
+            }
         });
 
         Ok(())
@@ -143,7 +149,8 @@ impl Handler<Connection, Error> for Server {
 
             // Spawn a session actor from frame and ensure the session has access to the Bus.
             let bus = self.bus.clone();
-            let _: () = Session::new(conn.addr, bus).from_framed(framed);
+            let session_id = self.rng.borrow_mut().gen::<usize>();
+            let _: () = Session::new(conn.addr, bus, session_id).from_framed(framed);
         } else {
             warn!("websocket connection upgrade failed");
         }

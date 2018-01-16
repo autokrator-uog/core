@@ -4,7 +4,7 @@ use actix::{Actor, Context, Handler, Response, ResponseType};
 use serde::Serialize;
 
 use bus::Bus;
-use messages::SendToClient;
+use signals::SendToClient;
 
 /// The `SendToAllClients` message is sent to the Bus when a message needs to be sent
 /// to all the clients managed by that session.

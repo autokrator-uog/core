@@ -9,15 +9,16 @@ use sha1::Sha1;
 
 use bus::Bus;
 use error::ErrorKind;
-use messages::SendToClient;
 use schemas;
 use session::Session;
+use signals::SendToClient;
 
 /// The `NewEvent` message is sent to the Bus when new events are sent from websockets.
 pub struct NewEvent {
     pub message: String,
     pub sender: (Address<Session>, SocketAddr),
     pub bus: Address<Bus>,
+    pub session_id: usize,
 }
 
 impl ResponseType for NewEvent {
@@ -66,7 +67,9 @@ impl Bus {
                 timestamp: receipt.timestamp.clone(),
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
-                data: raw_event.data.clone()
+                data: raw_event.data.clone(),
+                correlation_id: raw_event.correlation_id,
+                session_id: message.session_id,
             };
 
             receipt.receipts.push(schemas::outgoing::Receipt {
