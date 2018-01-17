@@ -19,9 +19,9 @@ impl<T> ResponseType for SendToAllClients<T>
 
 impl Bus {
     pub fn send_to_all_clients<T: Serialize + Clone + 'static>(&mut self, event: T) {
-        for (_, addr) in &self.sessions {
+        for (_, details) in &self.sessions {
             let cloned = event.clone();
-            addr.send(SendToClient(cloned));
+            details.address.send(SendToClient(cloned));
         }
     }
 }

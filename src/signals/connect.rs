@@ -2,7 +2,7 @@ use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context, Handler, Response, ResponseType};
 
-use bus::Bus;
+use bus::{Bus, SessionDetails, RegisteredTypes};
 use session::Session;
 
 /// The `Connect` message is sent to the Bus when a client connects.
@@ -18,7 +18,11 @@ impl ResponseType for Connect {
 
 impl Handler<Connect> for Bus {
     fn handle(&mut self, message: Connect, _: &mut Context<Self>) -> Response<Self, Connect> {
-        if let Some(_) = self.sessions.insert(message.addr, message.session) {
+	    let details = SessionDetails {
+            address: message.session,
+            registered_types: RegisteredTypes::All,
+	    };
+        if let Some(_) = self.sessions.insert(message.addr, details) {
             info!("session updated in bus: client='{}'", message.addr);
         } else {
             info!("new session added to bus: client='{}'", message.addr);
