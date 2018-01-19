@@ -27,6 +27,15 @@ pub struct EventMessage {
     pub correlation_id: usize,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct OutRegisterMessage {
+    pub message_type: String,
+    pub event_type: String,
+    pub timestamp: String,
+    pub sender: String,
+    pub data: Value,
+}
+
 #[cfg(test)]
 mod event_tests {
     use super::*;
