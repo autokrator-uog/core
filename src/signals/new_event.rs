@@ -56,10 +56,12 @@ impl Bus {
         Ok(())
     }
 
-    fn hash(&mut self, input: String) -> String {
+    fn hash<T: Serialize>(&mut self, input: &T) -> Result<String, Error> {
+        let json = to_string(input).context(ErrorKind::SerializeJsonForHashing)?;
+        
         let mut hasher = Sha1::new();
-        hasher.update(input.as_bytes());
-        hasher.digest().to_string()
+        hasher.update(json.as_bytes());
+        Ok(hasher.digest().to_string())
     }
 
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
@@ -92,17 +94,13 @@ impl Bus {
 
             receipt.receipts.push(schemas::outgoing::Receipt {
                 // here, we just care about verifying the integrity of the data, so the hash need only be done on this
-                checksum: self.hash(
-                    to_string(&event.data.clone()).context(ErrorKind::SerializeJsonForHashing)?
-                ),
+                checksum: self.hash(&event.data.clone())?,
                 status: "success".to_string()
             });
             self.send_to_kafka(&event, &event.event_type)?;
             
             // do a separate hash to include timestamp, sender etc to make the hash always unique
-            let hash_all = self.hash(
-                to_string(&event.clone()).context(ErrorKind::SerializeJsonForHashing)?
-            );
+            let hash_all = self.hash(&event.clone())?;
             self.persist_to_couchbase(&event, &hash_all.to_string())?;
         }
 

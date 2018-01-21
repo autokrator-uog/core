@@ -75,7 +75,7 @@ pub enum ErrorKind {
     #[fail(display = "Failed to get result of query")]
     CouchbaseFailedGetQueryResult,
     #[fail(display = "Failed to deserialize result of query")]
-    CouchbaseDeserializeError,
+    CouchbaseDeserialize,
     #[fail(display = "Failed to create GSI")]
     CouchbaseCreateGSIFailed,
     #[fail(display = "Got a row when we weren't expecting one")]

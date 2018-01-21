@@ -52,7 +52,7 @@ impl Bus {
             query = format!("{} AND timestamp_raw > {}", query, begin_datetime.timestamp());
         }
         
-        debug!("Executing query: {}", query);
+        debug!("executing query: {}", query);
         
         let result_iter = self.couchbase_bucket.query_n1ql(query).wait();
         
@@ -66,7 +66,7 @@ impl Bus {
                 Ok(N1qlResult::Row(row)) => {
                     debug!("Row (raw string): {}", &row.as_ref());
                     
-                    let parsed_row: CouchbaseStoredEvent = from_str(&row.as_ref()).context(ErrorKind::CouchbaseDeserializeError)?;
+                    let parsed_row: CouchbaseStoredEvent = from_str(&row.as_ref()).context(ErrorKind::CouchbaseDeserialize)?;
                     let event = parsed_row.events;
                     
                     client_session.send(SendToClient(event));

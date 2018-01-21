@@ -1,4 +1,3 @@
-
 use std::{thread, time};
 
 use futures::{Stream};
@@ -17,26 +16,24 @@ fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
     let event_type_index_result = bucket.query_n1ql(query).wait();
     for row in event_type_index_result {
         match row {
+            Err(err) => {
+                warn!("failed to create GSI {}. Error: {}", name, err);
+                return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
+            }
+            Ok(N1qlResult::Row(_)) => return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned)),
             Ok(N1qlResult::Meta(meta)) => {
                 if meta.status() == "success" {
                     info!("creating index {}... success!", name);
                 } else {
-                    warn!("Status of operation not 'success'... Failed to create GSI {}.", name);
+                    warn!("status of operation not 'success'... Failed to create GSI {}.", name);
                     return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
                 }
             },
-            Ok(N1qlResult::Row(_)) => return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned)),
-            
-            Err(err) => {
-                warn!("Failed to create GSI {}. Error: {}", name, err);
-                return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
-            }
         }
     }
     
     Ok(())
 }
-
 
 pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     // this is simply a state object, it doesn't actually initiate connections
@@ -51,13 +48,13 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     while bucket.is_err() && retries > 0 {
         match bucket {
             Ok(_) => {
-                panic!("bucket.is_err() shoud mean this never happens!");
+                return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned))
             },
             Err(CouchbaseError::AuthFailed) => { // this is the error that is called if the bucket does not exist, somehow...
-                warn!("The 'events' bucket does not exist. Waiting for it to be created... [retries left: {}]", retries);
+                warn!("the 'events' bucket does not exist. Waiting for it to be created... [retries left: {}]", retries);
             },
             Err(err) => {
-                error!("Failed to connect to couchbase - bucket {} on {}... [retries left: {}].  Error: {}", BUCKET_NAME, couchbase_host, retries, err);
+                error!("failed to connect to couchbase - bucket {} on {}... [retries left: {}].  Error: {}", BUCKET_NAME, couchbase_host, retries, err);
             },
         }
         
@@ -68,7 +65,7 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     
     let bucket = match bucket {
         Ok(bucket) => {
-            info!("Successfully connected to couchbase events bucket!");
+            info!("successfully connected to couchbase events bucket!");
             bucket
         },
         Err(e) => {
