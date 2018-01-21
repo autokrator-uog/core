@@ -56,10 +56,12 @@ A new event message is used to submit a new event(s) to the event bus. The follo
   "events": [
     {
       "event_type": "deposit",
+      "correlation_id": 94859829321,
       "data": {}
     },
     {
       "event_type": "withdrawal",
+      "correlation_id": 94859829321,
       "data": {}
     }
   ]

@@ -63,6 +63,14 @@ pub enum ErrorKind {
 
     #[fail(display = "Invalid JSON received in new event message")]
     ParseNewEventMessage,
+    
+    // couchbase errors
+    #[fail(display = "Failed to connect to Couchbase")]
+    CouchbaseFailedConnect,
+    #[fail(display = "Failed to get result of query")]
+    CouchbaseFailedGetQueryResult,
+    #[fail(display = "Failed to deserialize result of query")]
+    CouchbaseDeserializeError,
 }
 
 impl Error {

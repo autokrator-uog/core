@@ -25,6 +25,7 @@ mod schemas;
 mod server;
 mod session;
 mod signals;
+mod cb;
 
 use actix::{Address, System};
 use colored::*;
