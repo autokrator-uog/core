@@ -1,8 +1,9 @@
 
 use std::{thread, time};
 
+use futures::{Stream};
 use failure::{Error, Fail};
-use couchbase::{Bucket, Cluster, CouchbaseError};
+use couchbase::{Bucket, Cluster, CouchbaseError, N1qlResult};
 
 use error::ErrorKind;
 
@@ -10,6 +11,33 @@ use error::ErrorKind;
 const BUCKET_NAME : &str = "events";
 const MAX_RETRIES : u8 = 10;
 const RETRY_INTERVAL_MILLIS : u64 = 1000;
+
+
+fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
+    let query = format!("CREATE INDEX {0} ON events ({0}) USING GSI", name);
+    
+    let event_type_index_result = bucket.query_n1ql(query).wait();
+    for row in event_type_index_result {
+        match row {
+            Ok(N1qlResult::Meta(meta)) => {
+                if meta.status() == "success" {
+                    info!("Creating index {}... success!", name);
+                }
+                else {
+                    warn!("Status of operation not 'success'... Failed to create GSI {}.", name);
+                    return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
+                }
+            },
+            Ok(N1qlResult::Row(row)) => panic!("shoudn't return rows... Returned: {:?}", row),
+            Err(err) => {
+                warn!("Failed to create GSI {}. Error: {}", name, err);
+                return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
+            }
+        }
+    }
+    
+    Ok(())
+}
 
 
 pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
@@ -32,7 +60,7 @@ pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
                 
                 // TODO try to create the events bucket.
                 
-                // CREATE INDEX event_type ON events (event_type) USING GSI
+                
             }
             Err(err) => {
                 error!("Failed to connect to couchbase - bucket {} on {}... [retries left: {}].  Error: {}", BUCKET_NAME, couchbase_host, retries, err);
@@ -45,10 +73,23 @@ pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
         thread::sleep(time::Duration::from_millis(RETRY_INTERVAL_MILLIS));
     }
     
-    match bucket {
-        Ok(b) => Ok(b),
+    let bucket = match bucket {
+        Ok(b) => b,
         Err(e) => {
             return Err(Error::from(e.context(ErrorKind::CouchbaseFailedConnect))) 
         }
+    };
+    
+    // create Global Secondary Index for event_type field - required for querying on it
+    let event_type_gsi_result = create_gsi(&bucket, "event_type");
+    if event_type_gsi_result.is_err() {
+        info!("'event_type' GSI creation failed, but proceeding as it could already exist...");
     }
+    
+    let timestamp_raw_gsi_result = create_gsi(&bucket, "timestamp_raw");
+    if timestamp_raw_gsi_result.is_err() {
+        info!("'timestamp_raw' GSI creation failed, but proceeding as it could already exist...");
+    }
+    
+    Ok(bucket)
 }

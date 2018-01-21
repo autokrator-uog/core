@@ -71,6 +71,8 @@ pub enum ErrorKind {
     CouchbaseFailedGetQueryResult,
     #[fail(display = "Failed to deserialize result of query")]
     CouchbaseDeserializeError,
+    #[fail(display = "Failed to create GSI")]
+    CouchbaseCreateGSIFailed,
 }
 
 impl Error {
