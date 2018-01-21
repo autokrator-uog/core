@@ -1,4 +1,3 @@
-
 use actix::{Actor, Address, Context, Handler, Response, ResponseType};
 use failure::{Error, Fail, ResultExt};
 use serde_json::{from_str, to_string_pretty};

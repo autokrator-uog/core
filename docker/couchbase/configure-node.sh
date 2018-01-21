@@ -16,7 +16,7 @@ curl -v -X POST http://127.0.0.1:8091/nodes/self/controller/settings \
 curl -v -X POST http://127.0.0.1:8091/node/controller/rename -d 'hostname=couchbase.db'
 
 # Setup index and memory quota
-curl -v -X POST http://127.0.0.1:8091/pools/default -d memoryQuota=2048 -d indexMemoryQuota=256
+curl -v -X POST http://127.0.0.1:8091/pools/default -d memoryQuota=256 -d indexMemoryQuota=256
 
 # Setup services
 curl -v http://127.0.0.1:8091/node/controller/setupServices -d services=kv%2Cn1ql%2Cindex
