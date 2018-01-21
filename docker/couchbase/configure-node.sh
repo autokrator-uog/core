@@ -27,8 +27,8 @@ curl -v http://127.0.0.1:8091/settings/web -d port=8091 -d username=connect -d p
 # Setup Memory Optimized Indexes
 curl -i -u connect:connect -X POST http://127.0.0.1:8091/settings/indexes -d 'storageMode=memory_optimized'
 
-# Create events buckeet
+# Create events bucket
 curl -v -u connect:connect -X POST http://127.0.0.1:8091/pools/default/buckets \
-      -d name=events -d ramQuotaMB=1500 -d authType=none -d replicaNumber=0 -d bucketType=couchbase
+      -d name=events -d ramQuotaMB=250 -d authType=none -d replicaNumber=0 -d bucketType=couchbase
 
 fg 1

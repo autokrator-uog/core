@@ -2,13 +2,12 @@ use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context, Handler, Response, ResponseType};
 use chrono::Local;
+use couchbase::{Document, BinaryDocument};
 use failure::{Error, ResultExt};
+use futures::Future;
 use serde::Serialize;
 use serde_json::{from_str, to_string, to_string_pretty};
 use sha1::Sha1;
-
-use couchbase::{Document, BinaryDocument};
-use futures::Future;
 
 use bus::Bus;
 use error::ErrorKind;

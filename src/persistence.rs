@@ -7,11 +7,9 @@ use couchbase::{Bucket, Cluster, CouchbaseError, N1qlResult};
 
 use error::ErrorKind;
 
-
-const BUCKET_NAME : &str = "events";
-const MAX_RETRIES : u8 = 60;
-const RETRY_INTERVAL_MILLIS : u64 = 1000;
-
+const BUCKET_NAME: &str = "events";
+const MAX_RETRIES: u8 = 60;
+const RETRY_INTERVAL_MILLIS: u64 = 1000;
 
 fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
     let query = format!("CREATE INDEX {0} ON events ({0}) USING GSI", name);
@@ -21,14 +19,14 @@ fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
         match row {
             Ok(N1qlResult::Meta(meta)) => {
                 if meta.status() == "success" {
-                    info!("Creating index {}... success!", name);
-                }
-                else {
+                    info!("creating index {}... success!", name);
+                } else {
                     warn!("Status of operation not 'success'... Failed to create GSI {}.", name);
                     return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
                 }
             },
-            Ok(N1qlResult::Row(row)) => panic!("shoudn't return rows... Returned: {:?}", row),
+            Ok(N1qlResult::Row(_)) => return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned)),
+            
             Err(err) => {
                 warn!("Failed to create GSI {}. Error: {}", name, err);
                 return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
@@ -40,7 +38,7 @@ fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
 }
 
 
-pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
+pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     // this is simply a state object, it doesn't actually initiate connections
     let mut cluster = Cluster::new(couchbase_host)?;
     cluster.authenticate("connect", "connect");
@@ -54,13 +52,13 @@ pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
         match bucket {
             Ok(_) => {
                 panic!("bucket.is_err() shoud mean this never happens!");
-            }
+            },
             Err(CouchbaseError::AuthFailed) => { // this is the error that is called if the bucket does not exist, somehow...
                 warn!("The 'events' bucket does not exist. Waiting for it to be created... [retries left: {}]", retries);
-            }
+            },
             Err(err) => {
                 error!("Failed to connect to couchbase - bucket {} on {}... [retries left: {}].  Error: {}", BUCKET_NAME, couchbase_host, retries, err);
-            }
+            },
         }
         
         retries -= 1;
@@ -69,10 +67,9 @@ pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     }
     
     let bucket = match bucket {
-        Ok(b) => {
-            info!("Succeffully connected to couchbase events bucket!");
-            
-            b
+        Ok(bucket) => {
+            info!("Successfully connected to couchbase events bucket!");
+            bucket
         },
         Err(e) => {
             return Err(Error::from(e.context(ErrorKind::CouchbaseFailedConnect))) 

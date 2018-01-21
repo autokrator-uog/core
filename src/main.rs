@@ -25,7 +25,7 @@ mod schemas;
 mod server;
 mod session;
 mod signals;
-mod cb;
+mod persistence;
 
 use actix::{Address, System};
 use colored::*;
@@ -104,7 +104,7 @@ fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
     // and the consumer actor so that they can send it things.
     let brokers = arguments.value_of("brokers").ok_or(ErrorKind::MissingBrokersArgument)?;
     let topic = arguments.value_of("topic").ok_or(ErrorKind::MissingTopicArgument)?;
-    let couchbase_host = arguments.value_of("couchbase_host").ok_or(ErrorKind::MissingTopicArgument)?;
+    let couchbase_host = arguments.value_of("couchbase_host").ok_or(ErrorKind::MissingCouchbaseHostArgument)?;
     
     let bus: Address<_> = Bus::launch(brokers, topic, couchbase_host)?;
 

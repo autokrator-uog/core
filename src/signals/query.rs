@@ -46,8 +46,8 @@ impl Bus {
                     .collect();        
         let mut query = format!("SELECT * FROM events WHERE event_type IN [{}]", event_types.join(", "));
         
-        // allow an 'ALL' option
-        if parsed.since.to_uppercase() != "ALL" {
+        // allow an ALL option
+        if parsed.since.to_uppercase() != "*" {
             let begin_datetime = DateTime::parse_from_rfc3339(&parsed.since).context(ErrorKind::ParseQueryMessage)?;
             query = format!("{} AND timestamp_raw > {}", query, begin_datetime.timestamp());
         }

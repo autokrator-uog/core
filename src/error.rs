@@ -36,6 +36,8 @@ pub enum ErrorKind {
     MissingGroupArgument,
     #[fail(display = "No topic argument was provided. This is a bug, there should be a default")]
     MissingTopicArgument,
+    #[fail(display = "No couchbase_host argument was provided. This is a bug, there should be a default")]
+    MissingCouchbaseHostArgument,
 
     #[fail(display = "Encoding failure in websocket codec wrapper")]
     WebsocketCodecWrapperEncoding,
@@ -76,6 +78,8 @@ pub enum ErrorKind {
     CouchbaseDeserializeError,
     #[fail(display = "Failed to create GSI")]
     CouchbaseCreateGSIFailed,
+    #[fail(display = "Got a row when we weren't expecting one")]
+    CouchbaseUnexpectedResultReturned,
 }
 
 impl Error {

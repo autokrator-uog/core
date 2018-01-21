@@ -36,10 +36,7 @@ websocket = "0.20.2"
 [dependencies.couchbase]
 git = "https://github.com/couchbaselabs/couchbase-rs.git"
 branch = "master"
-# tag = "0.3.0"
 
 [dependencies.couchbase-sys]
 git = "https://github.com/couchbaselabs/couchbase-rs.git"
 branch = "master"
-# tag = "0.3.0"
-# features = ["build-lcb", "generate-binding"]

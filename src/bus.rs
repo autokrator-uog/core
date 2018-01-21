@@ -9,7 +9,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
 
 use couchbase::{Bucket};
-use cb::cb_connect_to_bucket;
+use persistence::connect_to_bucket;
 
 use error::ErrorKind;
 use session::Session;
@@ -34,13 +34,12 @@ impl Bus {
             .create::<FutureProducer<_>>()
             .context(ErrorKind::KafkaProducerCreation)?;
         
-        let bucket = cb_connect_to_bucket(couchbase_host)?;
+        let bucket = connect_to_bucket(couchbase_host)?;
 
         Ok(Self {
             sessions: HashMap::new(),
             topic: topic.to_owned(),
             producer: producer,
-            // couchbase_cluster: cluster,
             couchbase_bucket: bucket,
         }.start())
     }
