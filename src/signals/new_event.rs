@@ -64,11 +64,13 @@ impl Bus {
 
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
         let (session, addr) = message.sender;
+        
+        let now_time = Local::now();
 
         let mut receipt = schemas::outgoing::ReceiptMessage {
             receipts: Vec::new(),
             message_type: "receipt".to_string(),
-            timestamp: Local::now().to_rfc2822(),
+            timestamp: now_time.to_rfc2822(),
             sender: format!("{:?}", addr.clone()),
         };
 
@@ -79,8 +81,8 @@ impl Bus {
 
         for raw_event in parsed.events.iter() {
             let event = schemas::kafka::EventMessage {
-                timestamp: receipt.timestamp.clone(),
-                timestamp_raw: Local::now().timestamp(), // store the timestamp in raw form too - easier to query
+                timestamp: now_time.to_rfc2822(),
+                timestamp_raw: now_time.timestamp(), // store the timestamp in raw form too - easier to query
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
                 data: raw_event.data.clone(),
