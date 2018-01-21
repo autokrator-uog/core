@@ -26,6 +26,8 @@ pub struct SessionDetails {
     pub address: Address<Session>,
     pub registered_types: RegisteredTypes,
 }
+pub type SequenceKey = String;
+pub type SequenceValue = u32;
 
 /// Bus maintains the state that pertains to all clients and allows clients to send messages
 /// to each other.
@@ -35,6 +37,7 @@ pub struct SessionDetails {
 pub struct Bus {
     pub sessions: HashMap<SocketAddr, SessionDetails>,
     pub topic: String,
+    pub consistency: HashMap<SequenceKey, SequenceValue>,
     pub producer: FutureProducer<EmptyContext>,
     pub couchbase_bucket: Bucket
 }
@@ -52,6 +55,7 @@ impl Bus {
         Ok(Self {
             sessions: HashMap::new(),
             topic: topic.to_owned(),
+            consistency: HashMap::new(),
             producer: producer,
             couchbase_bucket: bucket,
         }.start())

@@ -1,6 +1,8 @@
 /// This module contains the schemas for all the incoming messages we get. We don't include
+///
 /// the `message_type` field in these. Top-level structs are appended with 'Message'.
 use serde_json::Value;
+use schemas::common::Consistency;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewEventMessage {
@@ -12,6 +14,7 @@ pub struct Event {
     pub event_type: String,
     pub correlation_id: usize,
     pub data: Value,
+    pub consistency: Consistency,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -41,6 +44,10 @@ mod event_tests {
                                 "data": {
                                     "account": 837,
                                     "amount": 3
+                                },
+                                "consistency": {
+                                    "key": "testkey",
+                                    "value": 123456
                                 }
                             },
                             {
@@ -49,6 +56,10 @@ mod event_tests {
                                 "data": {
                                     "account": 2837,
                                     "amount": 5
+                                },
+                                "consistency": {
+                                    "key": "testkey",
+                                    "value": 123456
                                 }
                             }
                         ]
@@ -61,10 +72,14 @@ mod event_tests {
             assert_eq!(message.events[0].correlation_id, 94859829321);
             assert_eq!(message.events[0].data["account"], 837);
             assert_eq!(message.events[0].data["amount"], 3);
+            assert_eq!(message.events[0].consistency.key, "testkey");
+            assert_eq!(message.events[0].consistency.value, 123456);
             assert_eq!(message.events[1].event_type, "withdrawal");
             assert_eq!(message.events[1].correlation_id, 94859829321);
             assert_eq!(message.events[1].data["account"], 2837);
             assert_eq!(message.events[1].data["amount"], 5);
+            assert_eq!(message.events[1].consistency.key, "testkey");
+            assert_eq!(message.events[1].consistency.value, 123456);
         }
     }
 

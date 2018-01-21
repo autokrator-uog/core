@@ -90,6 +90,7 @@ impl Bus {
                 data: raw_event.data.clone(),
                 correlation_id: raw_event.correlation_id,
                 session_id: message.session_id,
+                consistency: raw_event.consistency.clone(),
             };
 
             receipt.receipts.push(schemas::outgoing::Receipt {

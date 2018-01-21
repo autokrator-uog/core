@@ -2,6 +2,7 @@
 /// We don't include the `message_type` field in these. Top-level structs are appended with
 /// 'Message'.
 use serde_json::Value;
+use schemas::common::Consistency;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct EventMessage {
@@ -12,4 +13,5 @@ pub struct EventMessage {
     pub correlation_id: usize,
     pub sender: String,
     pub data: Value,
+    pub consistency: Consistency,
 }

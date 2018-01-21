@@ -88,6 +88,7 @@ impl Consumer {
             sender: parsed.sender,
             data: parsed.data,
             correlation_id: parsed.correlation_id,
+            consistency: parsed.consistency,
         };
 
         self.bus.send(signals::SendToAllClients(message, parsed.event_type));

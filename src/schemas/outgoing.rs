@@ -2,6 +2,7 @@
 /// We include the `message_type` field in these. Top-level structs are appended with
 /// 'Message'.
 use serde_json::Value;
+use schemas::common::Consistency;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ReceiptMessage {
@@ -25,6 +26,7 @@ pub struct EventMessage {
     pub sender: String,
     pub data: Value,
     pub correlation_id: usize,
+    pub consistency: Consistency,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -49,6 +51,10 @@ mod event_tests {
                         "data": {
                             "account": 3847,
                             "amount": 3
+                        },
+                        "consistency": {
+                            "key": "testkey",
+                            "value": 123456
                         }
                    }"#;
 
@@ -63,6 +69,8 @@ mod event_tests {
             assert_eq!(message.correlation_id, 28374928374);
             assert_eq!(message.data["account"], 3847);
             assert_eq!(message.data["amount"], 3);
+            assert_eq!(message.consistency.key, "testkey");
+            assert_eq!(message.consistency.value, 123456);
         }
     }
 
@@ -80,4 +88,3 @@ mod event_tests {
         assert!(parsed.is_err());
     }
 }
-
