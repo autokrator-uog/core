@@ -81,6 +81,7 @@ impl Bus {
         for raw_event in parsed.events.iter() {
             let event = schemas::kafka::EventMessage {
                 timestamp: receipt.timestamp.clone(),
+                timestamp_raw: Local::now().timestamp(), // store the timestamp in raw form too - easier to query
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
                 data: raw_event.data.clone(),

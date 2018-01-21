@@ -4,6 +4,7 @@ use failure::{Error, Fail, ResultExt};
 use serde_json::{from_str, to_string_pretty};
 use couchbase::{N1qlResult};
 use futures::{Stream};
+use chrono::DateTime;
 
 use schemas;
 use schemas::kafka::EventMessage;
@@ -42,9 +43,15 @@ impl Bus {
         // serialize event types into a sensible string
         let event_types: Vec<String> = parsed.event_types.iter()
                     .map(|et| { "\"".to_string() + &et + "\"" })
-                    .collect();
+                    .collect();        
+        let mut query = format!("SELECT * FROM events WHERE event_type IN [{}]", event_types.join(", "));
         
-        let query = format!("SELECT * FROM events WHERE event_type IN [{}]", event_types.join(", "));
+        // allow an 'ALL' option
+        if parsed.since.to_uppercase() != "ALL" {
+            let begin_datetime = DateTime::parse_from_rfc3339(&parsed.since).context(ErrorKind::ParseQueryMessage)?;
+            query = format!("{} AND timestamp_raw > {}", query, begin_datetime.timestamp());
+        }
+        
         debug!("Executing query: {}", query);
         
         let result_iter = self.couchbase_bucket.query_n1ql(query).wait();
