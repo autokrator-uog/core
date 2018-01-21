@@ -20,7 +20,7 @@ use session::Session;
 
 pub enum RegisteredTypes {
     All,
-    //Some(Vec<String>),
+    Some(Vec<String>),
 }
 
 pub struct SessionDetails {

@@ -28,12 +28,9 @@ pub struct EventMessage {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct OutRegisterMessage {
+pub struct RegisterReceipt {
     pub message_type: String,
     pub event_type: String,
-    pub timestamp: String,
-    pub sender: String,
-    pub data: Value,
 }
 
 #[cfg(test)]
