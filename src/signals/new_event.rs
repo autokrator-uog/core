@@ -4,7 +4,7 @@ use actix::{Actor, Address, Context, Handler, Response, ResponseType};
 use chrono::Local;
 use failure::{Error, ResultExt};
 use serde::Serialize;
-use serde_json::{from_str, to_string, to_string_pretty, Value};
+use serde_json::{from_str, to_string, to_string_pretty};
 use sha1::Sha1;
 
 use couchbase::{Document, BinaryDocument};
@@ -57,11 +57,10 @@ impl Bus {
         Ok(())
     }
 
-    fn hash_json(&mut self, input: Value) -> Result<String, Error> {
-        let json = to_string(&input).context(ErrorKind::SerializeJsonForHashing)?;
+    fn hash(&mut self, input: String) -> String {
         let mut hasher = Sha1::new();
-        hasher.update(json.as_bytes());
-        Ok(hasher.digest().to_string())
+        hasher.update(input.as_bytes());
+        hasher.digest().to_string()
     }
 
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
@@ -89,16 +88,20 @@ impl Bus {
                 session_id: message.session_id,
             };
 
-            let hash = self.hash_json(event.data.clone())?;
-
             receipt.receipts.push(schemas::outgoing::Receipt {
-                checksum: hash.clone(),
+                // here, we just care about verifying the integrity of the data, so the hash need only be done on this
+                checksum: self.hash(
+                    to_string(&event.data.clone()).context(ErrorKind::SerializeJsonForHashing)?
+                ),
                 status: "success".to_string()
             });
-
             self.send_to_kafka(&event, &event.event_type)?;
             
-            self.persist_to_couchbase(&event, &hash.clone().to_string())?;
+            // do a separate hash to include timestamp, sender etc to make the hash always unique
+            let hash_all = self.hash(
+                to_string(&event.clone()).context(ErrorKind::SerializeJsonForHashing)?
+            );
+            self.persist_to_couchbase(&event, &hash_all.to_string())?;
         }
 
         info!("sending receipt to the client");
