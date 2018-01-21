@@ -3,6 +3,7 @@ extern crate bytes;
 extern crate chrono;
 #[macro_use] extern crate clap;
 extern crate colored;
+extern crate couchbase;
 #[macro_use] extern crate failure;
 extern crate fern;
 extern crate futures;
@@ -15,8 +16,8 @@ extern crate serde_json;
 extern crate sha1;
 extern crate tokio_core;
 extern crate tokio_io;
+extern crate void;
 extern crate websocket;
-extern crate couchbase;
 
 mod bus;
 mod consumer;
@@ -105,7 +106,7 @@ fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
     let brokers = arguments.value_of("brokers").ok_or(ErrorKind::MissingBrokersArgument)?;
     let topic = arguments.value_of("topic").ok_or(ErrorKind::MissingTopicArgument)?;
     let couchbase_host = arguments.value_of("couchbase_host").ok_or(ErrorKind::MissingCouchbaseHostArgument)?;
-    
+
     let bus: Address<_> = Bus::launch(brokers, topic, couchbase_host)?;
 
     // Start WebSocket server.
