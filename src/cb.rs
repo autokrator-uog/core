@@ -9,7 +9,7 @@ use error::ErrorKind;
 
 
 const BUCKET_NAME : &str = "events";
-const MAX_RETRIES : u8 = 10;
+const MAX_RETRIES : u8 = 60;
 const RETRY_INTERVAL_MILLIS : u64 = 1000;
 
 
@@ -56,25 +56,24 @@ pub fn cb_connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
                 panic!("bucket.is_err() shoud mean this never happens!");
             }
             Err(CouchbaseError::AuthFailed) => { // this is the error that is called if the bucket does not exist, somehow...
-                warn!("The 'events' bucket does not exist. Attempting to create it... [retries left: {}]", retries);
-                
-                // TODO try to create the events bucket.
-                
-                
+                warn!("The 'events' bucket does not exist. Waiting for it to be created... [retries left: {}]", retries);
             }
             Err(err) => {
                 error!("Failed to connect to couchbase - bucket {} on {}... [retries left: {}].  Error: {}", BUCKET_NAME, couchbase_host, retries, err);
-                
-                bucket = cluster.open_bucket(BUCKET_NAME, None);
             }
         }
         
         retries -= 1;
+        bucket = cluster.open_bucket(BUCKET_NAME, None);
         thread::sleep(time::Duration::from_millis(RETRY_INTERVAL_MILLIS));
     }
     
     let bucket = match bucket {
-        Ok(b) => b,
+        Ok(b) => {
+            info!("Succeffully connected to couchbase events bucket!");
+            
+            b
+        },
         Err(e) => {
             return Err(Error::from(e.context(ErrorKind::CouchbaseFailedConnect))) 
         }
