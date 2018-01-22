@@ -16,7 +16,6 @@ extern crate serde_json;
 extern crate sha1;
 extern crate tokio_core;
 extern crate tokio_io;
-extern crate void;
 extern crate websocket;
 
 mod bus;

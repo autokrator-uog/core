@@ -14,6 +14,8 @@ use error::ErrorKind;
 use schemas;
 use session::Session;
 use signals::SendToClient;
+use schemas::incoming::ConsistencyValue;
+use schemas::common::Consistency;
 
 /// The `NewEvent` message is sent to the Bus when new events are sent from websockets.
 pub struct NewEvent {
@@ -51,7 +53,7 @@ impl Bus {
         let document = BinaryDocument::create(document_id, None, Some(serialized.as_bytes().to_owned()), None);
 
         info!("saving event in couchbase: event=\n{}", pretty_serialized);
-        self.couchbase_bucket.upsert(document).wait().expect("Upsert failed!");
+        self.couchbase_bucket.upsert(document).wait()?;
 
         Ok(())
     }
@@ -82,6 +84,19 @@ impl Bus {
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
 
         for raw_event in parsed.events.iter() {
+            let key = raw_event.consistency.key.clone();
+            let value = match raw_event.consistency.value.clone() {
+                ConsistencyValue::Explicit(v) => v,
+                ConsistencyValue::Implicit => {
+                    if let Some(x) = self.consistency.get(&key) {
+                        *x + 1
+                    } else {
+                        0
+                    }
+                },
+            };
+            let consistency = Consistency {key: key, value: value};
+
             let event = schemas::kafka::EventMessage {
                 timestamp: now_time.to_rfc2822(),
                 timestamp_raw: now_time.timestamp(), // store the timestamp in raw form too - easier to query
@@ -90,14 +105,46 @@ impl Bus {
                 data: raw_event.data.clone(),
                 correlation_id: raw_event.correlation_id,
                 session_id: message.session_id,
-                consistency: raw_event.consistency.clone(),
+                consistency: consistency,
             };
 
+            let key = raw_event.consistency.key.clone();
+            let success = if let Some(x) = self.consistency.get(&key){
+                if value == (x + 1) {
+                    true
+                } else {
+                    false
+                }
+            } else {
+                if value == 0 {
+                    true
+                } else {
+                    false
+                }
+            };
+
+            let mut status = "inconsistent";
+            if success {
+                self.consistency.insert(key, value);
+                status = "success";
+
+                info!("sending event to kafka: sequencekey='{}', sequencevalue={}", raw_event.consistency.key.clone(), value);
+                self.send_to_kafka(&event, &event.event_type)?;
+
+                // Do a separate hash to include timestamp, sender etc to make the hash always
+                // unique.
+                let hash_all = self.hash(&event.clone())?;
+                info!("sending event to couchbase");
+                self.persist_to_couchbase(&event, &hash_all.to_string())?;
+            }
+
             receipt.receipts.push(schemas::outgoing::Receipt {
-                // here, we just care about verifying the integrity of the data, so the hash need only be done on this
+                // We just care about verifying the integrity of the data,
+                // so the hash need only be done on this.
                 checksum: self.hash(&event.data.clone())?,
-                status: "success".to_string()
+                status: status.to_string()
             });
+
             self.send_to_kafka(&event, &event.event_type)?;
 
             // do a separate hash to include timestamp, sender etc to make the hash always unique

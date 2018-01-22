@@ -65,6 +65,10 @@ pub enum ErrorKind {
 
     #[fail(display = "Invalid JSON received in new event message")]
     ParseNewEventMessage,
+    
+    #[fail(display = "Invalid consistency value type recieved in incoming event message")]
+    ParseConsistencyValue,
+
     #[fail(display = "Invalid data received in query message")]
     ParseQueryMessage,
 

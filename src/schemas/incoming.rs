@@ -1,18 +1,16 @@
 /// This module contains the schemas for all the incoming messages we get. We don't include
-///
 /// the `message_type` field in these. Top-level structs are appended with 'Message'.
 use serde_json::Value;
-use schemas::common::Consistency;
 use std::fmt;
 use std::str::FromStr;
 use std::marker::PhantomData;
-use serde::de::{self, Deserialize, Deserializer, Visitor, MapAccess};
-use serde_json::from_str;
-use void::Void;
+use serde::de::{self, Deserializer, Visitor};
 use bus::SequenceKey;
+use error::ErrorKind;
+use failure::{ResultExt, Error};
 
-#[derive(Serialize, Deserialize, Debug)]
-enum ConsistencyValue {
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ConsistencyValue {
     Implicit,
     Explicit(u32),
 }
@@ -21,29 +19,29 @@ impl Default for ConsistencyValue {
     fn default() -> Self { ConsistencyValue::Implicit }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-struct ConsistencyIn {
-    key: SequenceKey,
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Consistency {
+    pub key: SequenceKey,
 
-    // this lets it handle the case where there is no val field provided.
+    // This allows us to process incoming messages which are not u32. We can 
+    // deserialise unsigned ints of different sizes along with strings. 
+    // We need this as some messages do not require consistency so we allow the
+    // use of a wildcard value "*". We also implement parsing of strings in case of
+    // incorrectly typed but legitimate Sequence values.
     #[serde(default, deserialize_with = "consistency_value_parse")]
-    val: ConsistencyValue,
+    pub value: ConsistencyValue,
 }
 
 impl FromStr for ConsistencyValue {
-    // This implementation of `from_str` can never fail, so use the impossible
-    // `Void` type as the error type.
-    type Err = Void;
+
+    type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s == "*" {
             Ok(ConsistencyValue::Implicit)
-        } else if s == "a number" {
-            // parse it
-            Ok(ConsistencyValue::Explicit(12))
         } else {
-            // return with our actual error type
-            Ok(ConsistencyValue::Explicit(12))
+            let parsed: u32 = s.parse::<u32>().context(ErrorKind::ParseConsistencyValue)?;
+            Ok(ConsistencyValue::Explicit(parsed))
         }
     }
 }
@@ -51,11 +49,6 @@ impl FromStr for ConsistencyValue {
 fn consistency_value_parse<'de, D>(deserializer: D) -> Result<ConsistencyValue, D::Error>
     where D: Deserializer<'de>
 {
-    // This is a Visitor that forwards string types to T's `FromStr` impl and
-    // forwards map types to T's `Deserialize` impl. The `PhantomData` is to
-    // keep the compiler from complaining about T being an unused generic type
-    // parameter. We need T in order to know the Value type for the Visitor
-    // impl.
     struct ConstValParse(PhantomData<fn() -> ConsistencyValue>);
 
     impl<'de> Visitor<'de> for ConstValParse
@@ -160,14 +153,12 @@ mod event_tests {
             assert_eq!(message.events[0].correlation_id, 94859829321);
             assert_eq!(message.events[0].data["account"], 837);
             assert_eq!(message.events[0].data["amount"], 3);
-            //assert_eq!(message.events[0].consistency.key, "testkey");
-            //assert_eq!(message.events[0].consistency.value, 123456);
+            assert_eq!(message.events[0].consistency.key, "testkey");
             assert_eq!(message.events[1].event_type, "withdrawal");
             assert_eq!(message.events[1].correlation_id, 94859829321);
             assert_eq!(message.events[1].data["account"], 2837);
             assert_eq!(message.events[1].data["amount"], 5);
-            //assert_eq!(message.events[1].consistency.key, "testkey");
-            //assert_eq!(message.events[1].consistency.value, 123456);
+            assert_eq!(message.events[1].consistency.key, "testkey");
         }
     }
 
@@ -187,6 +178,28 @@ mod event_tests {
             assert_eq!(message.event_types[0], "deposit");
             assert_eq!(message.event_types[1], "withdrawal");
         }
+    }
+    
+    #[test]
+    fn parse_consistency_from_str() {
+        assert_eq!(match ConsistencyValue::from_str("*").unwrap() {
+            ConsistencyValue::Explicit(v) => v,
+            ConsistencyValue::Implicit => {
+                0
+                },
+            }, 0);
+        assert_eq!(match ConsistencyValue::from_str("1").unwrap() {
+            ConsistencyValue::Explicit(v) => v,
+            ConsistencyValue::Implicit => {
+                0
+                },
+            }, 1);
+        assert_eq!(match ConsistencyValue::from_str("1234").unwrap() {
+            ConsistencyValue::Explicit(v) => v,
+            ConsistencyValue::Implicit => {
+                0
+                },
+            }, 1234);
     }
 
     #[test]

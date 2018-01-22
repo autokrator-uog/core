@@ -31,7 +31,6 @@ pub type SequenceValue = u32;
 
 /// Bus maintains the state that pertains to all clients and allows clients to send messages
 /// to each other.
-///
 /// Handlers for different types of messages that the bus can handle are implemented in the
 /// messages module.
 pub struct Bus {
