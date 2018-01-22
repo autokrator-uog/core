@@ -21,11 +21,11 @@ extern crate couchbase;
 mod bus;
 mod consumer;
 mod error;
+mod persistence;
 mod schemas;
 mod server;
 mod session;
 mod signals;
-mod persistence;
 
 use actix::{Address, System};
 use colored::*;

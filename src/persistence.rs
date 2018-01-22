@@ -1,7 +1,7 @@
 use std::{thread, time};
 
-use futures::{Stream};
 use failure::{Error, Fail};
+use futures::{Stream};
 use couchbase::{Bucket, Cluster, CouchbaseError, N1qlResult};
 
 use error::ErrorKind;
@@ -11,7 +11,7 @@ const MAX_RETRIES: u8 = 60;
 const RETRY_INTERVAL_MILLIS: u64 = 1000;
 
 fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
-    let query = format!("CREATE INDEX {0} ON events ({0}) USING GSI", name);
+    let query = format!("CREATE INDEX {0} ON {1} ({0}) USING GSI", name, BUCKET_NAME);
     
     let event_type_index_result = bucket.query_n1ql(query).wait();
     for row in event_type_index_result {

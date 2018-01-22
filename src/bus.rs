@@ -2,15 +2,14 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
+use couchbase::{Bucket};
 use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
 
-use couchbase::{Bucket};
-use persistence::connect_to_bucket;
-
 use error::ErrorKind;
+use persistence::connect_to_bucket;
 use session::Session;
 
 /// Bus maintains the state that pertains to all clients and allows clients to send messages

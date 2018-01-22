@@ -1,17 +1,17 @@
-use actix::{Actor, Address, Context, Handler, Response, ResponseType};
-use failure::{Error, Fail, ResultExt};
-use serde_json::{from_str, to_string_pretty};
-use couchbase::{N1qlResult};
-use futures::{Stream};
-use chrono::DateTime;
 
+use actix::{Actor, Address, Context, Handler, Response, ResponseType};
+use chrono::DateTime;
+use couchbase::{N1qlResult};
+use failure::{Error, Fail, ResultExt};
+use futures::{Stream};
+use serde_json::{from_str, to_string_pretty};
+
+use bus::Bus;
+use error::ErrorKind;
 use schemas;
 use schemas::kafka::EventMessage;
-use signals::SendToClient;
-
-use error::ErrorKind;
-use bus::Bus;
 use session::Session;
+use signals::SendToClient;
 
 /// The `Query` message is sent to the Bus when query requests are sent from websockets.
 pub struct Query {
