@@ -65,10 +65,9 @@ pub enum ErrorKind {
 
     #[fail(display = "Invalid JSON received in new event message")]
     ParseNewEventMessage,
-    
     #[fail(display = "Invalid data received in query message")]
     ParseQueryMessage,
-    
+
     // couchbase errors
     #[fail(display = "Failed to connect to Couchbase")]
     CouchbaseFailedConnect,
@@ -80,6 +79,9 @@ pub enum ErrorKind {
     CouchbaseCreateGSIFailed,
     #[fail(display = "Got a row when we weren't expecting one")]
     CouchbaseUnexpectedResultReturned,
+
+    #[fail(display = "The client was not present in the HashMap")]
+    SessionNotInHashMap,
 }
 
 impl Error {

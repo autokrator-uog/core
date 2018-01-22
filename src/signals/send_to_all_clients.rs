@@ -8,7 +8,7 @@ use signals::SendToClient;
 
 /// The `SendToAllClients` message is sent to the Bus when a message needs to be sent
 /// to all the clients managed by that session.
-pub struct SendToAllClients<T: Serialize + Clone>(pub T);
+pub struct SendToAllClients<T: Serialize + Clone>(pub T, pub String);
 
 impl<T> ResponseType for SendToAllClients<T>
     where T: Serialize + Clone
@@ -20,8 +20,15 @@ impl<T> ResponseType for SendToAllClients<T>
 impl Bus {
     pub fn send_to_all_clients<T: Serialize + Clone + 'static>(&mut self, event: T) {
         for (_, details) in &self.sessions {
-            let cloned = event.clone();
-            details.address.send(SendToClient(cloned));
+            let should_send = match 
+            if details.registered_types == RegisteredTypes::All {
+                match 
+                let cloned = event.clone();
+                details.address.send(SendToClient(cloned));
+            }
+            else {
+                details.registered_types.
+            }
         }
     }
 }

@@ -66,7 +66,7 @@ impl Session {
                 info!("sending register message to bus");
                 let register = signals::Register {
                     message: contents,
-                    sender: ctx.address(),
+                    sender: (ctx.address(), self.addr),
                     bus: self.bus.clone(),
                 };
                 self.bus.send(register);

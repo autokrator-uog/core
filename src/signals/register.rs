@@ -17,8 +17,8 @@ use session::Session;
 /// itself or limit event types it can receive.
 pub struct Register {
     pub message: String,
-    pub sender: Address<Session>,
     pub bus: Address<Bus>,
+    pub sender: (Address<Session>, SocketAddr),
 }
 
 impl ResponseType for Register {
@@ -29,36 +29,37 @@ impl ResponseType for Register {
 impl Bus {
    
     pub fn register_message(&mut self, message: Register) -> Result<(), Error> {
-        let addr = message.sender;
-
-        let mut receipt = schemas::outgoing::RegisterReceipt {
-            receipts: Vec::new(),
-            message_type: "receipt".to_string(),
-            timestamp: Local::now().to_rfc2822(),
-            sender: format!("{:?}", addr.clone()),
-        };
+        let (addr, socket) = message.sender;
 
         let parsed: schemas::incoming::RegisterMessage = from_str(&message.message).context(
             ErrorKind::ParseNewEventMessage)?;
         info!("parsed new event message: message=\n{}",
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
 
-        for raw_event in parsed.event_types.iter() {
-            let event = schemas::kafka::EventMessage {
-                timestamp: receipt.timestamp.clone(),
-                sender: receipt.sender.clone(),
-                event_type: raw_event.event_type.clone(),
-                data: raw_event.data.clone()
-            };
+        let mut receipt = schemas::outgoing::Registration {
+            message_type: "registration".to_string(),
+	        event_types: parsed.event_types,
+        };
 
-            receipt.receipts.push(schemas::outgoing::Receipt {
-                checksum: self.hash_json(event.data.clone())?,
-                status: "success".to_string()
-            });
+	    match self.sessions.get(socket) {
+	        Some(details) => {
+                if event_types.len() == 1 && event.types[0] == "*" {
+                    details.registered_types = RegisteredTypes::All;
+                }
+                else {
+                    details.registered_types = RegisteredTypes::Some(parsed.event_types);
+                }
+            },
+
+            None => {
+                error!("Client is not present in HashMap. This is a bug.");
+                return Err(Error::from(ErrorKind::SessionNotInHashMap));
+            },
         }
+        
 
         info!("sending receipt to the client");
-        session.send(SendToClient(receipt));
+        addr.send(SendToClient(receipt));
 
         Ok(())
     }
