@@ -5,15 +5,9 @@ variables:
   EVENT_BUS_TAG_THIS_BUILD: $REG_EVENT_BUS:$CI_COMMIT_REF_NAME
 
 stages:
-  - test
   - build
+  - test
   - publish
-
-test_event_bus:
-  image: rust:1.21
-  stage: test
-  script:
-    - cargo test
 
 build_event_bus:
   image: docker:latest
@@ -22,6 +16,14 @@ build_event_bus:
     - docker build -t $EVENT_BUS_TAG_THIS_BUILD .
     - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
     - docker push $EVENT_BUS_TAG_THIS_BUILD
+    
+test_event_bus:
+  image: docker:latest
+  stage: test
+  script:
+    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
+    - docker pull $EVENT_BUS_TAG_THIS_BUILD
+    - docker run -t $EVENT_BUS_TAG_THIS_BUILD cargo test
 
 prod_tag_event_bus:
   image: docker:latest

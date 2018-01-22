@@ -5,6 +5,8 @@ networks:
     driver: bridge
   kafka-public:
     driver: bridge
+  persistence:
+    driver: bridge
 
 services:
   zookeeper:
@@ -32,3 +34,11 @@ services:
       - kafka-internal
       - kafka-public
     restart: always
+
+  couchbase.db:
+    build: ./couchbase/
+    networks:
+      - persistence
+    ports:
+      - 8091-8094:8091-8094
+      - 11210-11211:11210-11211

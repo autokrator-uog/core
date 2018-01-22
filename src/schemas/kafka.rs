@@ -7,6 +7,7 @@ use serde_json::Value;
 pub struct EventMessage {
     pub event_type: String,
     pub timestamp: String,
+    pub timestamp_raw: i64,
     pub session_id: usize,
     pub correlation_id: usize,
     pub sender: String,

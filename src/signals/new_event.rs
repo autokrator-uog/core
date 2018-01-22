@@ -2,9 +2,11 @@ use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context, Handler, Response, ResponseType};
 use chrono::Local;
+use couchbase::{Document, BinaryDocument};
 use failure::{Error, ResultExt};
+use futures::Future;
 use serde::Serialize;
-use serde_json::{from_str, to_string, to_string_pretty, Value};
+use serde_json::{from_str, to_string, to_string_pretty};
 use sha1::Sha1;
 
 use bus::Bus;
@@ -39,9 +41,24 @@ impl Bus {
                                                   Some(event_type), None, 1000);
         Ok(())
     }
+    
+    fn persist_to_couchbase<T: Serialize>(&mut self, event: &T, document_id: &str) -> Result<(), Error> {
+        let serialized = to_string(event).context(
+            ErrorKind::SerializeJsonForSending)?;
+        let pretty_serialized = to_string_pretty(event).context(
+            ErrorKind::SerializeJsonForSending)?;
+        
+        let document = BinaryDocument::create(document_id, None, Some(serialized.as_bytes().to_owned()), None);
+        
+        info!("saving event in couchbase: event=\n{}", pretty_serialized);
+        self.couchbase_bucket.upsert(document).wait().expect("Upsert failed!");
+        
+        Ok(())
+    }
 
-    fn hash_json(&mut self, input: Value) -> Result<String, Error> {
-        let json = to_string(&input).context(ErrorKind::SerializeJsonForHashing)?;
+    fn hash<T: Serialize>(&mut self, input: &T) -> Result<String, Error> {
+        let json = to_string(input).context(ErrorKind::SerializeJsonForHashing)?;
+        
         let mut hasher = Sha1::new();
         hasher.update(json.as_bytes());
         Ok(hasher.digest().to_string())
@@ -49,11 +66,13 @@ impl Bus {
 
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
         let (session, addr) = message.sender;
+        
+        let now_time = Local::now();
 
         let mut receipt = schemas::outgoing::ReceiptMessage {
             receipts: Vec::new(),
             message_type: "receipt".to_string(),
-            timestamp: Local::now().to_rfc2822(),
+            timestamp: now_time.to_rfc2822(),
             sender: format!("{:?}", addr.clone()),
         };
 
@@ -64,7 +83,8 @@ impl Bus {
 
         for raw_event in parsed.events.iter() {
             let event = schemas::kafka::EventMessage {
-                timestamp: receipt.timestamp.clone(),
+                timestamp: now_time.to_rfc2822(),
+                timestamp_raw: now_time.timestamp(), // store the timestamp in raw form too - easier to query
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
                 data: raw_event.data.clone(),
@@ -73,11 +93,15 @@ impl Bus {
             };
 
             receipt.receipts.push(schemas::outgoing::Receipt {
-                checksum: self.hash_json(event.data.clone())?,
+                // here, we just care about verifying the integrity of the data, so the hash need only be done on this
+                checksum: self.hash(&event.data.clone())?,
                 status: "success".to_string()
             });
-
             self.send_to_kafka(&event, &event.event_type)?;
+            
+            // do a separate hash to include timestamp, sender etc to make the hash always unique
+            let hash_all = self.hash(&event.clone())?;
+            self.persist_to_couchbase(&event, &hash_all.to_string())?;
         }
 
         info!("sending receipt to the client");

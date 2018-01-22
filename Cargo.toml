@@ -32,3 +32,11 @@ sha1 = "0.2.0"
 tokio-core = "0.1.11"
 tokio-io = "0.1.4"
 websocket = "0.20.2"
+
+[dependencies.couchbase]
+git = "https://github.com/couchbaselabs/couchbase-rs.git"
+branch = "master"
+
+[dependencies.couchbase-sys]
+git = "https://github.com/couchbaselabs/couchbase-rs.git"
+branch = "master"

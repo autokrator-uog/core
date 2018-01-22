@@ -36,6 +36,8 @@ pub enum ErrorKind {
     MissingGroupArgument,
     #[fail(display = "No topic argument was provided. This is a bug, there should be a default")]
     MissingTopicArgument,
+    #[fail(display = "No couchbase_host argument was provided. This is a bug, there should be a default")]
+    MissingCouchbaseHostArgument,
 
     #[fail(display = "Encoding failure in websocket codec wrapper")]
     WebsocketCodecWrapperEncoding,
@@ -63,6 +65,21 @@ pub enum ErrorKind {
 
     #[fail(display = "Invalid JSON received in new event message")]
     ParseNewEventMessage,
+    
+    #[fail(display = "Invalid data received in query message")]
+    ParseQueryMessage,
+    
+    // couchbase errors
+    #[fail(display = "Failed to connect to Couchbase")]
+    CouchbaseFailedConnect,
+    #[fail(display = "Failed to get result of query")]
+    CouchbaseFailedGetQueryResult,
+    #[fail(display = "Failed to deserialize result of query")]
+    CouchbaseDeserialize,
+    #[fail(display = "Failed to create GSI")]
+    CouchbaseCreateGSIFailed,
+    #[fail(display = "Got a row when we weren't expecting one")]
+    CouchbaseUnexpectedResultReturned,
 }
 
 impl Error {
