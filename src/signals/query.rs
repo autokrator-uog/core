@@ -31,7 +31,7 @@ pub struct CouchbaseStoredEvent {
 }
 
 impl Bus {
-    pub fn process_query_event(&mut self, message: Query) -> Result<(), Error> {
+    pub fn process_query_message(&mut self, message: Query) -> Result<(), Error> {
         // parse the JSON message
         let parsed: schemas::incoming::QueryMessage = from_str(&message.message)
                 .context(ErrorKind::ParseNewEventMessage)?;
@@ -51,25 +51,26 @@ impl Bus {
             query = format!("{} AND timestamp_raw > {}", query, begin_datetime.timestamp());
         }
         
-        debug!("executing query: {}", query);
-        
-        let result_iter = self.couchbase_bucket.query_n1ql(query).wait();
+        debug!("executing query: query='{}'", query);
         
         let client_session = message.sender;
+        let result_iter = self.couchbase_bucket.query_n1ql(query).wait();
         
         for row in result_iter {
             match row {
-                Ok(N1qlResult::Meta(meta)) => debug!("Meta: {:?}", meta), // we don't really care about this, just spit it out for debug
                 Err(e) => return Err(Error::from(e.context(ErrorKind::CouchbaseFailedGetQueryResult))),
-                
+                Ok(N1qlResult::Meta(meta)) => {
+                    // we don't really care about this, just spit it out for debug
+                    debug!("raw meta received: meta='{:?}'", meta)
+                }, 
                 Ok(N1qlResult::Row(row)) => {
-                    debug!("Row (raw string): {}", &row.as_ref());
+                    debug!("raw row received: row='{}'", &row.as_ref());
                     
                     let parsed_row: CouchbaseStoredEvent = from_str(&row.as_ref()).context(ErrorKind::CouchbaseDeserialize)?;
                     let event = parsed_row.events;
                     
                     client_session.send(SendToClient(event));
-                }
+                },
             }
         }
         
@@ -79,8 +80,8 @@ impl Bus {
 
 impl Handler<Query> for Bus {
     fn handle(&mut self, message: Query, _: &mut Context<Self>) -> Response<Self, Query> {
-        if let Err(e) = self.process_query_event(message) {
-            error!("processing new event: error='{}'", e);
+        if let Err(e) = self.process_query_message(message) {
+            error!("processing query message: error='{}'", e);
         }
 
         Self::empty()

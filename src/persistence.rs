@@ -17,15 +17,15 @@ fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
     for row in event_type_index_result {
         match row {
             Err(err) => {
-                warn!("failed to create GSI {}. Error: {}", name, err);
+                warn!("failed to create GSI. gsi='{}' error='{}'", name, err);
                 return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
             }
             Ok(N1qlResult::Row(_)) => return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned)),
             Ok(N1qlResult::Meta(meta)) => {
                 if meta.status() == "success" {
-                    info!("creating index {}... success!", name);
+                    info!("creating GSI succesful. gsi='{}'", name);
                 } else {
-                    warn!("status of operation not 'success'... Failed to create GSI {}.", name);
+                    warn!("creating GSI unsuccessful. gsi='{}'", name);
                     return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
                 }
             },
@@ -51,10 +51,10 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
                 return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned))
             },
             Err(CouchbaseError::AuthFailed) => { // this is the error that is called if the bucket does not exist, somehow...
-                warn!("the 'events' bucket does not exist. Waiting for it to be created... [retries left: {}]", retries);
+                warn!("the bucket does not exist. Waiting for it to be created... bucket='{}' retries_remaining={}", BUCKET_NAME, retries);
             },
             Err(err) => {
-                error!("failed to connect to couchbase - bucket {} on {}... [retries left: {}].  Error: {}", BUCKET_NAME, couchbase_host, retries, err);
+                error!("failed to connect to couchbase. bucket='{}' host='{}' error='{}' retries_remaining={}", BUCKET_NAME, couchbase_host, err, retries);
             },
         }
         
@@ -65,7 +65,7 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     
     let bucket = match bucket {
         Ok(bucket) => {
-            info!("successfully connected to couchbase events bucket!");
+            info!("successfully connected to couchbase bucket. bucket='{}'", BUCKET_NAME);
             bucket
         },
         Err(e) => {
@@ -76,12 +76,12 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
     // create Global Secondary Index for event_type field - required for querying on it
     let event_type_gsi_result = create_gsi(&bucket, "event_type");
     if event_type_gsi_result.is_err() {
-        info!("'event_type' GSI creation failed, but proceeding as it could already exist...");
+        info!("GSI creation failed, but proceeding as it could already exist... gsi='event_type'");
     }
     
     let timestamp_raw_gsi_result = create_gsi(&bucket, "timestamp_raw");
     if timestamp_raw_gsi_result.is_err() {
-        info!("'timestamp_raw' GSI creation failed, but proceeding as it could already exist...");
+        info!("GSI creation failed, but proceeding as it could already exist... gsi='timestamp_raw'");
     }
     
     Ok(bucket)
