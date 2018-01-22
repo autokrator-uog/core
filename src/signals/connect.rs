@@ -18,15 +18,17 @@ impl ResponseType for Connect {
 
 impl Handler<Connect> for Bus {
     fn handle(&mut self, message: Connect, _: &mut Context<Self>) -> Response<Self, Connect> {
-	    let details = SessionDetails {
+        let details = SessionDetails {
             address: message.session,
             registered_types: RegisteredTypes::All,
-	    };
+        };
+
         if let Some(_) = self.sessions.insert(message.addr, details) {
             info!("session updated in bus: client='{}'", message.addr);
         } else {
             info!("new session added to bus: client='{}'", message.addr);
         }
+
         Self::empty()
     }
 }

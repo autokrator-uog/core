@@ -18,8 +18,9 @@ impl<T> ResponseType for SendToAllClients<T>
 }
 
 impl Bus {
-    pub fn send_to_all_clients<T: Serialize + Clone + 'static>(&mut self, event: T, event_type: String,) {
-        for (_, details) in &self.sessions {
+    pub fn send_to_all_clients<T: Serialize + Clone + 'static>(&mut self, event: T,
+                                                               event_type: String) {
+        for (socket, details) in &self.sessions {
             let should_send = match details.registered_types {
                 RegisteredTypes::All => true,
                 RegisteredTypes::Some(ref types) => {
@@ -29,9 +30,12 @@ impl Bus {
                         false
                     }
                 },
-	        };
+            };
 
-            info!("sending message: should_send=`{:?}`", should_send);
+            info!("sending message registration check: client=`{:?}` \
+                  registered_types=`RegisteredTypes::{:?}` \
+                  type=`{}` sending=`{:?}`",
+                  socket, details.registered_types, event_type, should_send);
             if should_send {
                 let cloned = event.clone();
                 details.address.send(SendToClient(cloned));
