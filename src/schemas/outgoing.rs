@@ -28,9 +28,9 @@ pub struct EventMessage {
 }
 
 #[derive(Serialize, Deserialize, Clone)]
-pub struct RegisterReceipt {
+pub struct Registration {
     pub message_type: String,
-    pub event_type: String,
+    pub event_types: Vec<String>,
 }
 
 #[cfg(test)]

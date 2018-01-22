@@ -7,7 +7,7 @@ use serde::Serialize;
 use serde_json::{from_str, to_string, to_string_pretty, Value};
 use sha1::Sha1;
 
-use bus::Bus;
+use bus::{Bus, RegisteredTypes};
 use error::ErrorKind;
 use messages::SendToClient;
 use schemas;
@@ -38,21 +38,23 @@ impl Bus {
 
         let mut receipt = schemas::outgoing::Registration {
             message_type: "registration".to_string(),
-	        event_types: parsed.event_types,
+	        event_types: parsed.event_types.clone(),
         };
 
-	    match self.sessions.get(socket) {
+	    match self.sessions.get_mut(&socket) {
 	        Some(details) => {
-                if event_types.len() == 1 && event.types[0] == "*" {
+                if parsed.event_types.len() == 1 && parsed.event_types[0] == "*" {
+                    info!("updated register types for client: client=`{:?}` types=all", socket);
                     details.registered_types = RegisteredTypes::All;
                 }
                 else {
+		            info!("updated register types for client: client=`{:?}` types=`{:?}`", socket, parsed.event_types);
                     details.registered_types = RegisteredTypes::Some(parsed.event_types);
                 }
             },
 
             None => {
-                error!("Client is not present in HashMap. This is a bug.");
+                error!("client is not present in sessions. this is a bug.");
                 return Err(Error::from(ErrorKind::SessionNotInHashMap));
             },
         }

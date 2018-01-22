@@ -83,14 +83,14 @@ impl Consumer {
 
         let message = schemas::outgoing::EventMessage {
             message_type: "event".to_owned(),
-            event_type: parsed.event_type,
+            event_type: parsed.event_type.clone(),
             timestamp: parsed.timestamp,
             sender: parsed.sender,
             data: parsed.data,
             correlation_id: parsed.correlation_id,
         };
 
-        self.bus.send(signals::SendToAllClients(message));
+        self.bus.send(signals::SendToAllClients(message, parsed.event_type));
         debug!("finished processing message from kafka");
         Ok(())
     }
