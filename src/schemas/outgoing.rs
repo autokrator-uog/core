@@ -27,6 +27,12 @@ pub struct EventMessage {
     pub correlation_id: usize,
 }
 
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Registration {
+    pub message_type: String,
+    pub event_types: Vec<String>,
+}
+
 #[cfg(test)]
 mod event_tests {
     use super::*;
