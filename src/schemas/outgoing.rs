@@ -33,6 +33,7 @@ pub struct EventMessage {
 pub struct Registration {
     pub message_type: String,
     pub event_types: Vec<String>,
+    pub client_type: String,
 }
 
 #[cfg(test)]

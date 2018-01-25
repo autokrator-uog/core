@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, VecDeque};
 use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
@@ -14,7 +14,7 @@ use session::Session;
 
 /// RegisteredTypes represents which types of events a given client is interested in,
 /// all events or a subset of events.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum RegisteredTypes {
     All,
     Some(Vec<String>),
@@ -22,7 +22,9 @@ pub enum RegisteredTypes {
 
 /// SessionDetails contains all the information that relates to a given session that is
 /// connected.
+#[derive(Clone)]
 pub struct SessionDetails {
+    pub client_type: Option<String>,
     pub address: Address<Session>,
     pub registered_types: RegisteredTypes,
     pub is_registered: bool,
@@ -36,6 +38,7 @@ pub type SequenceValue = u32;
 /// messages module.
 pub struct Bus {
     pub sessions: HashMap<SocketAddr, SessionDetails>,
+    pub round_robin_state: HashMap<String, VecDeque<SocketAddr>>,
     pub topic: String,
     pub consistency: HashMap<SequenceKey, SequenceValue>,
     pub producer: FutureProducer<EmptyContext>,
@@ -54,6 +57,7 @@ impl Bus {
 
         Ok(Self {
             sessions: HashMap::new(),
+            round_robin_state: HashMap::new(),
             topic: topic.to_owned(),
             consistency: HashMap::new(),
             producer: producer,

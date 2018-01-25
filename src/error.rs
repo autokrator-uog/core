@@ -84,6 +84,10 @@ pub enum ErrorKind {
 
     #[fail(display = "The client was not present in the HashMap")]
     SessionNotInHashMap,
+    #[fail(display = "No clients in round robin queue for type")]
+    RoundRobinEmptyQueue,
+    #[fail(display = "No queue for client type in round robin state")]
+    RoundRobinNoQueue,
 }
 
 impl Error {
