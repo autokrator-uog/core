@@ -1,8 +1,7 @@
 use std::cell::RefCell;
 use std::net::SocketAddr;
 
-use actix::{Actor, Address, Arbiter, AsyncContext, Context, FramedActor, Handler, StreamHandler};
-use actix::{Response, ResponseType};
+use actix::{Actor, Address, Arbiter, AsyncContext, Context, FramedActor, Handler, ResponseType};
 use bytes::BytesMut;
 use failure::{Error, Fail, ResultExt};
 use rand::{self, Rng, ThreadRng};
@@ -122,20 +121,26 @@ impl Server {
 
 impl Actor for Server {
     type Context = Context<Self>;
-}
 
-// By implementing StreamHandler, we can add streams to this actor which will trigger the
-// event functions below.
-impl StreamHandler<Connection, Error> for Server {
     fn started(&mut self, _ctx: &mut Context<Self>) { info!("websocket server started"); }
-    fn finished(&mut self, _ctx: &mut Context<Self>) { info!("websocket server finished"); }
+    fn stopped(&mut self, _ctx: &mut Context<Self>) { info!("websocket server finished"); }
 }
 
-impl Handler<Connection, Error> for Server {
+impl Handler<Result<Connection, Error>> for Server {
+    type Result = ();
+
     /// Handle an incoming connection and create a session.
-    fn handle(&mut self, conn: Connection, _: &mut Context<Self>) -> Response<Self, Connection> {
+    fn handle(&mut self, conn: Result<Connection, Error>, _: &mut Context<Self>) {
         // This runs on its own thread so we can just wait on the future from accepting the
         // connection upgrade.
+        let conn = match conn {
+            Ok(c) => c,
+            Err(e) => {
+                error!("invalid websocket connection: error=`{:?}`", e);
+                return;
+            },
+        };
+
         if let Ok((framed, _)) = conn.upgrade.accept().wait() {
             // For the same reason that we have the Connection type, we need a wrapper type
             // around the MessageCodec from the websockets library so that we can implement
@@ -150,12 +155,12 @@ impl Handler<Connection, Error> for Server {
             // Spawn a session actor from frame and ensure the session has access to the Bus.
             let bus = self.bus.clone();
             let session_id = self.rng.borrow_mut().gen::<usize>();
-            let _: () = Session::new(conn.addr, bus, session_id).from_framed(framed);
+            let addr = conn.addr;
+            let _: () = Session::create_with(framed, move |_, framed| {
+                Session::new(addr.clone(), bus.clone(), session_id.clone(), framed)
+            });
         } else {
             warn!("websocket connection upgrade failed");
         }
-
-        // No need for inter-actor communication so we can return a unit response.
-        Self::empty()
     }
 }

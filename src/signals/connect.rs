@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use actix::{Actor, Address, Context, Handler, Response, ResponseType};
+use actix::{Address, Context, Handler, ResponseType};
 
 use bus::{Bus, SessionDetails, RegisteredTypes};
 use session::Session;
@@ -17,7 +17,9 @@ impl ResponseType for Connect {
 }
 
 impl Handler<Connect> for Bus {
-    fn handle(&mut self, message: Connect, _: &mut Context<Self>) -> Response<Self, Connect> {
+    type Result = ();
+
+    fn handle(&mut self, message: Connect, _: &mut Context<Self>) {
         let details = SessionDetails {
             address: message.session,
             registered_types: RegisteredTypes::All,
@@ -28,7 +30,5 @@ impl Handler<Connect> for Bus {
         } else {
             info!("new session added to bus: client='{}'", message.addr);
         }
-
-        Self::empty()
     }
 }

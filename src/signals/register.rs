@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use actix::{Actor, Address, Context, Handler, Response, ResponseType};
+use actix::{Address, Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, to_string_pretty};
 
@@ -63,11 +63,11 @@ impl Bus {
 
 
 impl Handler<Register> for Bus {
-    fn handle(&mut self, message: Register, _: &mut Context<Self>) -> Response<Self, Register> {
+    type Result = ();
+
+    fn handle(&mut self, message: Register, _: &mut Context<Self>) {
         if let Err(e) = self.register(message) {
             error!("processing new event: error='{}'", e);
         }
-
-        Self::empty()
     }
 }
