@@ -146,7 +146,7 @@ impl FramedActor<TcpStream, Codec> for Session {
         let message = match message {
             Ok(m) => m,
             Err(e) => {
-                error!("error on session: error=`{:?}`", e);
+                error!("error on session: error='{:?}'", e);
                 return;
             },
         };

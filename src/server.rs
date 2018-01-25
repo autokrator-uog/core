@@ -136,7 +136,7 @@ impl Handler<Result<Connection, Error>> for Server {
         let conn = match conn {
             Ok(c) => c,
             Err(e) => {
-                error!("invalid websocket connection: error=`{:?}`", e);
+                error!("invalid websocket connection: error='{:?}'", e);
                 return;
             },
         };

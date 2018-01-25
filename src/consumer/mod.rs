@@ -124,7 +124,7 @@ impl Handler<Result<KafkaMessage, Error>> for Consumer {
         let message = match message {
             Ok(m) => m,
             Err(e) => {
-                error!("invalid kafka message: error=`{:?}`", e);
+                error!("invalid kafka message: error='{:?}'", e);
                 return;
             },
         };

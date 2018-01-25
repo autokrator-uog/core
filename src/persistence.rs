@@ -54,11 +54,11 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
             // This is the error that is called if the bucket does not exist, somehow...
             Err(CouchbaseError::AuthFailed) => {
                 warn!("the bucket does not exist. waiting for it to be created: \
-                      bucket='{}' retries_remaining=`{}`", BUCKET_NAME, retries);
+                      bucket='{}' retries_remaining='{}'", BUCKET_NAME, retries);
             },
             Err(err) => {
                 error!("failed to connect to couchbase: bucket='{}' host='{}' \
-                       error='{}' retries_remaining={}",
+                       error='{}' retries_remaining='{}'",
                        BUCKET_NAME, couchbase_host, err, retries);
             },
         }
