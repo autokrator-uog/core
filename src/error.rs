@@ -25,8 +25,6 @@ pub enum ErrorKind {
     UnableToBindWebsocketServer,
     #[fail(display = "Invalid websocket connection accepted")]
     InvalidWebsocketConnection,
-    #[fail(display = "Failed to send message on websocket connection")]
-    SendOnWebsocket,
 
     #[fail(display = "No bind argument was provided. This is a bug, there should be a default")]
     MissingBindArgument,
