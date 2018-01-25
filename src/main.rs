@@ -21,6 +21,7 @@ extern crate websocket;
 mod bus;
 mod consumer;
 mod error;
+mod helpers;
 mod persistence;
 mod schemas;
 mod server;
