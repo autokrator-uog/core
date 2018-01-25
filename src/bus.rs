@@ -25,6 +25,7 @@ pub enum RegisteredTypes {
 pub struct SessionDetails {
     pub address: Address<Session>,
     pub registered_types: RegisteredTypes,
+    pub is_registered: bool,
 }
 pub type SequenceKey = String;
 pub type SequenceValue = u32;

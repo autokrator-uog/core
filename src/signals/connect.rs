@@ -23,6 +23,7 @@ impl Handler<Connect> for Bus {
         let details = SessionDetails {
             address: message.session,
             registered_types: RegisteredTypes::All,
+            is_registered: false,
         };
 
         if let Some(_) = self.sessions.insert(message.addr, details) {

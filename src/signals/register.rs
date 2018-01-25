@@ -48,6 +48,9 @@ impl Bus {
                           socket, parsed.event_types);
                     details.registered_types = RegisteredTypes::Some(parsed.event_types);
                 }
+
+                info!("marking client as registered: client=`{:?}`", socket);
+                details.is_registered = true;
             },
             None => {
                 error!("client is not present in sessions. this is a bug.");

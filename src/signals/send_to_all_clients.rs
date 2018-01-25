@@ -30,15 +30,19 @@ impl Bus {
                         false
                     }
                 },
-            };
+            } && details.is_registered;
 
             info!("sending message registration check: client=`{:?}` \
                   registered_types=`RegisteredTypes::{:?}` \
-                  type=`{}` sending=`{:?}`",
-                  socket, details.registered_types, event_type, should_send);
+                  type=`{}` is_registered=`{:?}` sending=`{:?}`",
+                  socket, details.registered_types, event_type, details.is_registered,
+                  should_send);
             if should_send {
+                info!("sending 'send to all' signal: client=`{:?}`", socket);
                 let cloned = event.clone();
                 details.address.send(SendToClient(cloned));
+            } else {
+                info!("not sending 'send to all' signal: client=`{:?}`", socket);
             }
         }
     }
@@ -49,8 +53,7 @@ impl<T> Handler<SendToAllClients<T>> for Bus
 {
     type Result = ();
 
-    fn handle(&mut self, message: SendToAllClients<T>,
-              _: &mut Context<Self>) {
+    fn handle(&mut self, message: SendToAllClients<T>, _: &mut Context<Self>) {
         self.send_to_all_clients(message.0, message.1);
     }
 }
