@@ -1,6 +1,6 @@
 use std::clone::Clone;
 
-use actix::{Actor, Context, Handler, Response, ResponseType};
+use actix::{Context, Handler, ResponseType};
 use serde::Serialize;
 
 use bus::{Bus, RegisteredTypes};
@@ -8,9 +8,9 @@ use signals::SendToClient;
 
 /// The `SendToAllClients` message is sent to the Bus when a message needs to be sent
 /// to all the clients managed by that session.
-pub struct SendToAllClients<T: Serialize + Clone>(pub T, pub String);
+pub struct SendToAllClients<T: Serialize + Send + Clone>(pub T, pub String);
 
-impl<T> ResponseType for SendToAllClients<T>
+impl<T: Send> ResponseType for SendToAllClients<T>
     where T: Serialize + Clone
 {
     type Item = ();
@@ -18,8 +18,8 @@ impl<T> ResponseType for SendToAllClients<T>
 }
 
 impl Bus {
-    pub fn send_to_all_clients<T: Serialize + Clone + 'static>(&mut self, event: T,
-                                                               event_type: String) {
+    pub fn send_to_all_clients<T: Serialize + Send + Clone + 'static>(&mut self, event: T,
+                                                                      event_type: String) {
         for (socket, details) in &self.sessions {
             let should_send = match details.registered_types {
                 RegisteredTypes::All => true,
@@ -45,11 +45,12 @@ impl Bus {
 }
 
 impl<T> Handler<SendToAllClients<T>> for Bus
-    where T: Serialize + Clone + 'static
+    where T: Serialize + Send + Clone + 'static
 {
+    type Result = ();
+
     fn handle(&mut self, message: SendToAllClients<T>,
-              _: &mut Context<Self>) -> Response<Self, SendToAllClients<T>> {
+              _: &mut Context<Self>) {
         self.send_to_all_clients(message.0, message.1);
-        Self::empty()
     }
 }

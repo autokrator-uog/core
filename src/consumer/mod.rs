@@ -2,7 +2,7 @@ mod stream;
 
 use std::str::from_utf8;
 
-use actix::{Actor, Address, AsyncContext, Context, Handler, StreamHandler, Response, ResponseType};
+use actix::{Actor, Address, AsyncContext, Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use futures::stream::Stream;
 use rdkafka::Message;
@@ -110,24 +110,26 @@ impl Consumer {
 
 impl Actor for Consumer {
     type Context = Context<Self>;
-}
 
-// By implementing StreamHandler, we can add streams to this actor which will trigger the
-// event functions below.
-impl StreamHandler<KafkaMessage, Error> for Consumer {
     fn started(&mut self, _ctx: &mut Context<Self>) { info!("consumer listener started"); }
-    fn finished(&mut self, _ctx: &mut Context<Self>) { info!("consumer listener finished"); }
+    fn stopped(&mut self, _ctx: &mut Context<Self>) { info!("consumer listener finished"); }
 }
 
-impl Handler<KafkaMessage, Error> for Consumer {
+impl Handler<Result<KafkaMessage, Error>> for Consumer {
+    type Result = ();
+
     /// Handle an incoming message from Kafka.
-    fn handle(&mut self, message: KafkaMessage,
-              _ctx: &mut Context<Self>) -> Response<Self, KafkaMessage> {
+    fn handle(&mut self, message: Result<KafkaMessage, Error>, _ctx: &mut Context<Self>) {
+        let message = match message {
+            Ok(m) => m,
+            Err(e) => {
+                error!("invalid kafka message: error=`{:?}`", e);
+                return;
+            },
+        };
+
         if let Err(e) = self.process_message(message) {
             error!("processing message from kafka: error='{}'", e);
         }
-
-        // No need for inter-actor communication so we can return a unit response.
-        Self::empty()
     }
 }

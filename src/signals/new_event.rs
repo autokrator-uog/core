@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use actix::{Actor, Address, Context, Handler, Response, ResponseType};
+use actix::{Address, Context, Handler, ResponseType};
 use chrono::Local;
 use couchbase::{Document, BinaryDocument};
 use failure::{Error, ResultExt};
@@ -41,24 +41,24 @@ impl Bus {
                                                   Some(event_type), None, 1000);
         Ok(())
     }
-    
+
     fn persist_to_couchbase<T: Serialize>(&mut self, event: &T, document_id: &str) -> Result<(), Error> {
         let serialized = to_string(event).context(
             ErrorKind::SerializeJsonForSending)?;
         let pretty_serialized = to_string_pretty(event).context(
             ErrorKind::SerializeJsonForSending)?;
-        
+
         let document = BinaryDocument::create(document_id, None, Some(serialized.as_bytes().to_owned()), None);
-        
+
         info!("saving event in couchbase: event=\n{}", pretty_serialized);
         self.couchbase_bucket.upsert(document).wait().expect("Upsert failed!");
-        
+
         Ok(())
     }
 
     fn hash<T: Serialize>(&mut self, input: &T) -> Result<String, Error> {
         let json = to_string(input).context(ErrorKind::SerializeJsonForHashing)?;
-        
+
         let mut hasher = Sha1::new();
         hasher.update(json.as_bytes());
         Ok(hasher.digest().to_string())
@@ -66,7 +66,7 @@ impl Bus {
 
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
         let (session, addr) = message.sender;
-        
+
         let now_time = Local::now();
 
         let mut receipt = schemas::outgoing::ReceiptMessage {
@@ -98,7 +98,7 @@ impl Bus {
                 status: "success".to_string()
             });
             self.send_to_kafka(&event, &event.event_type)?;
-            
+
             // do a separate hash to include timestamp, sender etc to make the hash always unique
             let hash_all = self.hash(&event.clone())?;
             self.persist_to_couchbase(&event, &hash_all.to_string())?;
@@ -112,11 +112,11 @@ impl Bus {
 }
 
 impl Handler<NewEvent> for Bus {
-    fn handle(&mut self, message: NewEvent, _: &mut Context<Self>) -> Response<Self, NewEvent> {
+    type Result = ();
+
+    fn handle(&mut self, message: NewEvent, _: &mut Context<Self>) {
         if let Err(e) = self.process_new_event(message) {
             error!("processing new event: error='{}'", e);
         }
-
-        Self::empty()
     }
 }

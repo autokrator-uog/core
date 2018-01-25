@@ -14,7 +14,6 @@ Built by Team SED for the University of Glasgow Level 3 Team Project
 """
 
 [dependencies]
-actix = "0.3.5"
 bytes = "0.4.5"
 chrono = "0.4.0"
 clap = "2.27.1"
@@ -32,6 +31,10 @@ sha1 = "0.2.0"
 tokio-core = "0.1.11"
 tokio-io = "0.1.4"
 websocket = "0.20.2"
+
+[dependencies.actix]
+git = "https://github.com/actix/actix.git"
+rev = "ad82c51"
 
 [dependencies.couchbase]
 git = "https://github.com/couchbaselabs/couchbase-rs.git"
