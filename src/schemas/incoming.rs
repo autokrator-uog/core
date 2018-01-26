@@ -200,6 +200,7 @@ mod event_tests {
                 0
                 },
             }, 1234);
+        assert!(ConsistencyValue::from_str("non_wildcard_or_number_string").is_err());
     }
 
     #[test]
