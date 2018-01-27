@@ -1,20 +1,10 @@
-version: '2.2'
-
-networks:
-  kafka-internal:
-    driver: bridge
-  kafka-public:
-    driver: bridge
-  persistence:
-    driver: bridge
+version: '3'
 
 services:
   zookeeper:
     image: wurstmeister/zookeeper
     ports:
       - "2181:2181"
-    networks:
-      - kafka-internal
     restart: always
 
   kafka:
@@ -30,15 +20,10 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - kafka-internal
-      - kafka-public
     restart: always
 
   couchbase.db:
     build: ./couchbase/
-    networks:
-      - persistence
     ports:
       - 8091-8094:8091-8094
       - 11210-11211:11210-11211

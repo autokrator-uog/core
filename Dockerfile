@@ -14,4 +14,4 @@ RUN RUST_BACKTRACE=1 cargo install
 ENV LOG_LEVEL debug
 ENV BIND 0.0.0.0:8081
 
-CMD event-bus --broker $BROKER -g $GROUP -l $LOG_LEVEL -b $BIND server -t $TOPIC
+CMD event-bus -l $LOG_LEVEL server -b $BIND

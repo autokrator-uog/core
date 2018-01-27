@@ -15,8 +15,8 @@ if ! grep -q couchbase.db /etc/hosts; then
    echo "127.0.0.1 couchbase.db" >> /etc/hosts
 fi
 
-if ! grep -q event-bus /etc/hosts; then
-   echo "127.0.0.1 event-bus" >> /etc/hosts
+if ! grep -q eventbus /etc/hosts; then
+   echo "127.0.0.1 eventbus" >> /etc/hosts
 fi
 echo "====> [+] /etc/hosts configured correctly."
 
@@ -53,7 +53,7 @@ echo
 echo "======================================="
 if [ "$1" == 'in_docker' ]; then
     echo "EVENT BUS LOGS: "
-    docker-compose -f docker/base.yml -f docker/event-bus.yml logs -f event-bus
+    docker-compose -f docker/base.yml -f docker/event-bus.yml logs -f eventbus
 
 elif [ "$1" == 'run_bus' ]; then
     echo "RUN EVENT BUS:"

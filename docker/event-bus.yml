@@ -1,11 +1,9 @@
-version: '2.2'
+version: '3'
 
 services:
-  event-bus:
+  eventbus:
     build: ..
     environment:
       BROKER: kafka:9092
       TOPIC: events
       GROUP: event-bus
-    networks:
-      - kafka-public
