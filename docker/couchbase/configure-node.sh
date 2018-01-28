@@ -5,7 +5,7 @@ set -m
 
 /entrypoint.sh couchbase-server &
 
-sleep 15
+sleep 25
 
 # init node
 curl -v -X POST http://127.0.0.1:8091/nodes/self/controller/settings \
