@@ -1,4 +1,3 @@
-
 variables:
   REGISTRY: sed-team-project:4567
   REG_EVENT_BUS: sed-team-project:4567/sed-dev-group/event-bus
@@ -7,6 +6,7 @@ variables:
 stages:
   - build
   - test
+  - docs
   - publish
 
 build_event_bus:
@@ -16,7 +16,7 @@ build_event_bus:
     - docker build -t $EVENT_BUS_TAG_THIS_BUILD .
     - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
     - docker push $EVENT_BUS_TAG_THIS_BUILD
-    
+
 test_event_bus:
   image: docker:latest
   stage: test
@@ -24,6 +24,21 @@ test_event_bus:
     - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
     - docker pull $EVENT_BUS_TAG_THIS_BUILD
     - docker run -t $EVENT_BUS_TAG_THIS_BUILD cargo test
+
+pages:
+  image: rust:jessie
+  stage: build
+  script:
+    - apt-get update
+    - apt-get install -y libev4 libssl1.0.0 cmake build-essential
+    - wget https://github.com/couchbase/libcouchbase/releases/download/2.8.1/libcouchbase-2.8.1_jessie_amd64.tar
+    - tar xf libcouchbase-2.8.1_jessie_amd64.tar
+    - dpkg -i libcouchbase-2.8.1_jessie_amd64/*.deb
+    - cargo doc
+    - cp -R target/doc public
+  artifacts:
+    paths:
+      - public
 
 prod_tag_event_bus:
   image: docker:latest
