@@ -9,7 +9,7 @@ use bus::SequenceKey;
 use error::ErrorKind;
 use failure::{ResultExt, Error};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ConsistencyValue {
     Implicit,
     Explicit(u32),
@@ -19,12 +19,12 @@ impl Default for ConsistencyValue {
     fn default() -> Self { ConsistencyValue::Implicit }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Consistency {
     pub key: SequenceKey,
 
-    // This allows us to process incoming messages which are not u32. We can 
-    // deserialise unsigned ints of different sizes along with strings. 
+    // This allows us to process incoming messages which are not u32. We can
+    // deserialise unsigned ints of different sizes along with strings.
     // We need this as some messages do not require consistency so we allow the
     // use of a wildcard value "*". We also implement parsing of strings in case of
     // incorrectly typed but legitimate Sequence values.
@@ -33,7 +33,6 @@ pub struct Consistency {
 }
 
 impl FromStr for ConsistencyValue {
-
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -58,19 +57,19 @@ fn consistency_value_parse<'de, D>(deserializer: D) -> Result<ConsistencyValue, 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             formatter.write_str("string or integer")
         }
-        
+
         fn visit_u64<E: de::Error>(self, v: u64) -> Result<ConsistencyValue, E> {
             Ok(ConsistencyValue::Explicit(v as u32))
         }
-        
+
         fn visit_u32<E: de::Error>(self, v: u32) -> Result<ConsistencyValue, E> {
             Ok(ConsistencyValue::Explicit(v))
         }
-        
+
         fn visit_u16<E: de::Error>(self, v: u16) -> Result<ConsistencyValue, E> {
             Ok(ConsistencyValue::Explicit(v as u32))
         }
-        
+
         fn visit_u8<E: de::Error>(self, v: u8) -> Result<ConsistencyValue, E> {
             Ok(ConsistencyValue::Explicit(v as u32))
         }
@@ -78,7 +77,7 @@ fn consistency_value_parse<'de, D>(deserializer: D) -> Result<ConsistencyValue, 
         fn visit_str<E>(self, value: &str) -> Result<ConsistencyValue, E>
             where E: de::Error
         {
-            Ok(FromStr::from_str(value).unwrap())
+            FromStr::from_str(value).map_err(de::Error::custom)
         }
     }
 
@@ -179,27 +178,12 @@ mod event_tests {
             assert_eq!(message.event_types[1], "withdrawal");
         }
     }
-    
+
     #[test]
     fn parse_consistency_from_str() {
-        assert_eq!(match ConsistencyValue::from_str("*").unwrap() {
-            ConsistencyValue::Explicit(v) => v,
-            ConsistencyValue::Implicit => {
-                0
-                },
-            }, 0);
-        assert_eq!(match ConsistencyValue::from_str("1").unwrap() {
-            ConsistencyValue::Explicit(v) => v,
-            ConsistencyValue::Implicit => {
-                0
-                },
-            }, 1);
-        assert_eq!(match ConsistencyValue::from_str("1234").unwrap() {
-            ConsistencyValue::Explicit(v) => v,
-            ConsistencyValue::Implicit => {
-                0
-                },
-            }, 1234);
+        assert_eq!(ConsistencyValue::from_str("*").unwrap(), ConsistencyValue::Implicit);
+        assert_eq!(ConsistencyValue::from_str("1").unwrap(), ConsistencyValue::Explicit(1));
+        assert_eq!(ConsistencyValue::from_str("1234").unwrap(), ConsistencyValue::Explicit(1234));
         assert!(ConsistencyValue::from_str("non_wildcard_or_number_string").is_err());
     }
 
