@@ -32,12 +32,12 @@ impl Bus {
                     false
                 }
             },
-        } && details.is_registered;
+        } && details.client_type.is_some();
 
         info!("sending message registration check: client='{}' \
               registered_types='RegisteredTypes::{:?}' \
               type=`{}` is_registered='{:?}' sending='{:?}'",
-              socket, details.registered_types, event_type, details.is_registered,
+              socket, details.registered_types, event_type, details.client_type.is_some(),
               should_send);
         should_send
     }

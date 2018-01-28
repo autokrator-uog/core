@@ -23,7 +23,6 @@ impl Handler<Connect> for Bus {
         let details = SessionDetails {
             address: message.session,
             registered_types: RegisteredTypes::All,
-            is_registered: false,
             client_type: None,
         };
 

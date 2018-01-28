@@ -95,9 +95,6 @@ impl Bus {
                     details.registered_types = RegisteredTypes::Some(parsed.event_types.clone());
                 }
 
-                info!("marking client as registered: client='{}'", socket);
-                details.is_registered = true;
-
                 Ok(())
             },
             None => {

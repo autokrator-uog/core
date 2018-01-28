@@ -24,11 +24,14 @@ pub enum RegisteredTypes {
 /// connected.
 #[derive(Clone)]
 pub struct SessionDetails {
+    /// This field contains the type of this client, it is `None` if the client is not registered.
     pub client_type: Option<String>,
+    /// This field contains the address of the session actor that signals should be sent to.
     pub address: Address<Session>,
+    /// This field contains the registered types for this client.
     pub registered_types: RegisteredTypes,
-    pub is_registered: bool,
 }
+
 pub type SequenceKey = String;
 pub type SequenceValue = u32;
 
@@ -37,11 +40,28 @@ pub type SequenceValue = u32;
 /// Handlers for different types of messages that the bus can handle are implemented in the
 /// messages module.
 pub struct Bus {
+    /// This field contains the majority of the information regarding an individual session. When
+    /// a client connects, the `SocketAddr` identifies the client connection and the
+    /// `SessionDetails` contains other information required for that session including the event
+    /// types it is registered for, if it is registered, the address of the actor and the type of
+    /// client.
     pub sessions: HashMap<SocketAddr, SessionDetails>,
+    /// This field contains a mapping from the client type to a queue containing the `SocketAddr`
+    /// for connected clients that are of that client type. This is useful as we want to be able
+    /// to iterate over each type of client and then send to the sessions of that type. Each
+    /// `SocketAddr` should be in the `sessions` map.
     pub round_robin_state: HashMap<String, VecDeque<SocketAddr>>,
+    /// This field contains a mapping from each sequence key to the `SocketAddr` of the client
+    /// that handles the events for that key. It is checked before the round robin state.
+    pub sticky_consistency: HashMap<SequenceKey, SocketAddr>,
+    /// This field contains the topic that events should be sent to in Kafka.
     pub topic: String,
+    /// This field contains the mapping of the sequence key to the last seen sequence value.
     pub consistency: HashMap<SequenceKey, SequenceValue>,
+    /// This field contains the producer that will be used when sending messages to Kafka.
     pub producer: FutureProducer<EmptyContext>,
+    /// This field contains the couchbase bucket that will be used when persisting events to
+    /// Couchbase.
     pub couchbase_bucket: Bucket
 }
 
@@ -58,6 +78,7 @@ impl Bus {
         Ok(Self {
             sessions: HashMap::new(),
             round_robin_state: HashMap::new(),
+            sticky_consistency: HashMap::new(),
             topic: topic.to_owned(),
             consistency: HashMap::new(),
             producer: producer,
