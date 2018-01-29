@@ -37,11 +37,6 @@ pub enum ErrorKind {
     #[fail(display = "No couchbase_host argument was provided. This is a bug, there should be a default")]
     MissingCouchbaseHostArgument,
 
-    #[fail(display = "Encoding failure in websocket codec wrapper")]
-    WebsocketCodecWrapperEncoding,
-    #[fail(display = "Decoding failure in websocket codec wrapper")]
-    WebsocketCodecWrapperDecoding,
-
     #[fail(display = "Failed to parse bytes as UTF8 string")]
     ParseBytesAsUtf8,
     #[fail(display = "Received invalid message type over websockets")]

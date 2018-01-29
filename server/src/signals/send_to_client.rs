@@ -5,7 +5,6 @@ use serde_json::{to_string, to_string_pretty};
 use websocket::message::OwnedMessage;
 
 use error::ErrorKind;
-use server::WsMessage;
 use session::Session;
 
 /// The `SendToClient` message is sent to a Session when a message needs to be sent to the client
@@ -27,7 +26,7 @@ impl Session {
             ErrorKind::SerializeJsonForSending)?;
 
         info!("sending message: client='{}' message=\n{}", self.addr, pretty_serialized);
-        Ok(self.framed.send(WsMessage(OwnedMessage::Text(serialized))))
+        Ok(self.framed.send(OwnedMessage::Text(serialized)))
     }
 }
 

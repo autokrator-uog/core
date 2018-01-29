@@ -1,5 +1,4 @@
 extern crate actix;
-extern crate bytes;
 extern crate chrono;
 #[macro_use] extern crate clap;
 extern crate couchbase;
@@ -12,8 +11,6 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 extern crate sha1;
-extern crate tokio_core;
-extern crate tokio_io;
 extern crate vicarius_common;
 extern crate websocket;
 
@@ -99,7 +96,7 @@ fn main() {
 }
 
 fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
-    let system = System::new("event-bus");
+    let system = System::new(crate_name!());
 
     // Create the event bus actor, we'll pass this to the websocket server actor
     // and the consumer actor so that they can send it things.

@@ -4,26 +4,27 @@ use std::str::from_utf8;
 use actix::{Actor, Address, AsyncContext, Context, FramedActor, FramedCell};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
-use tokio_core::net::TcpStream;
+use websocket::WebSocketError;
+use websocket::async::TcpStream;
+use websocket::codec::ws::MessageCodec;
 use websocket::message::OwnedMessage;
 
 use bus::Bus;
 use error::ErrorKind;
-use server::{Codec, WsMessage};
 use signals;
 
 /// Session contains the state pertaining to one connected client.
 pub struct Session {
     pub addr: SocketAddr,
     bus: Address<Bus>,
-    pub framed: FramedCell<TcpStream, Codec>,
+    pub framed: FramedCell<TcpStream, MessageCodec<OwnedMessage>>,
     session_id: usize,
 }
 
 impl Session {
     /// Create a Session from a socket address and a bus actor.
     pub fn new(addr: SocketAddr, bus: Address<Bus>, session_id: usize,
-               framed: FramedCell<TcpStream, Codec>) -> Self {
+               framed: FramedCell<TcpStream, MessageCodec<OwnedMessage>>) -> Self {
         Self {
             addr,
             bus,
@@ -33,7 +34,7 @@ impl Session {
     }
 
     /// Process an incoming message on the Websockets connection.
-    fn process_message(&mut self, message: WsMessage,
+    fn process_message(&mut self, message: OwnedMessage,
                        ctx: &mut Context<Self>) -> Result<(), Error> {
         let contents = self.get_message_contents(message)?;
 
@@ -92,25 +93,25 @@ impl Session {
     }
 
     /// Returns the contents of a message from a Websockets message.
-    fn get_message_contents(&mut self, message: WsMessage) -> Result<String, Error> {
+    fn get_message_contents(&mut self, message: OwnedMessage) -> Result<String, Error> {
         match message {
-            WsMessage(OwnedMessage::Text(m)) => Ok(m),
-            WsMessage(OwnedMessage::Binary(b)) => {
+            OwnedMessage::Text(m) => Ok(m),
+            OwnedMessage::Binary(b) => {
                 Ok(from_utf8(&b).context(ErrorKind::ParseBytesAsUtf8)?.to_string())
             },
-            WsMessage(OwnedMessage::Close(_)) => {
+            OwnedMessage::Close(_) => {
                 // We don't stop the actor here as this causes issues with Actix. The stream
                 // closes itself in a moment.
                 info!("client has disconnected, stream will close and session will be removed \
                        momentarily: client='{}'", self.addr);
                 Err(Error::from(ErrorKind::InvalidWebsocketMessageType))
             },
-            WsMessage(OwnedMessage::Ping(d)) => {
-                self.framed.send(WsMessage(OwnedMessage::Pong(d)));
+            OwnedMessage::Ping(d) => {
+                self.framed.send(OwnedMessage::Pong(d));
                 Err(Error::from(ErrorKind::InvalidWebsocketMessageType))
             }
-            WsMessage(OwnedMessage::Pong(d)) => {
-                self.framed.send(WsMessage(OwnedMessage::Ping(d)));
+            OwnedMessage::Pong(d) => {
+                self.framed.send(OwnedMessage::Ping(d));
                 Err(Error::from(ErrorKind::InvalidWebsocketMessageType))
             }
         }
@@ -147,9 +148,9 @@ impl Actor for Session {
     }
 }
 
-impl FramedActor<TcpStream, Codec> for Session {
+impl FramedActor<TcpStream, MessageCodec<OwnedMessage>> for Session {
 
-    fn handle(&mut self, message: Result<WsMessage, Error>,
+    fn handle(&mut self, message: Result<OwnedMessage, WebSocketError>,
               ctx: &mut Context<Self>) {
         info!("received message on websockets: client='{}'", self.addr);
         let message = match message {
