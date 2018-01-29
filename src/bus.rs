@@ -1,4 +1,4 @@
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
@@ -30,6 +30,9 @@ pub struct SessionDetails {
     pub address: Address<Session>,
     /// This field contains the registered types for this client.
     pub registered_types: RegisteredTypes,
+    /// This field contains which consistency keys this session is handling through sticky
+    /// round robin.
+    pub consistency_keys: HashSet<String>,
 }
 
 pub type SequenceKey = String;

@@ -2,7 +2,10 @@
 /// We include the `message_type` field in these. Top-level structs are appended with
 /// 'Message'.
 use serde_json::Value;
-use schemas::common::Consistency;
+
+use bus::{SequenceKey, SequenceValue};
+use schemas::common::Consistency as ConsistencySchema;
+use signals::Consistency;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ReceiptMessage {
@@ -26,7 +29,12 @@ pub struct EventMessage {
     pub sender: String,
     pub data: Value,
     pub correlation_id: usize,
-    pub consistency: Consistency,
+    pub consistency: ConsistencySchema,
+}
+
+impl Consistency for EventMessage {
+    fn consistency_key(&self) -> SequenceKey { self.consistency.key.clone() }
+    fn consistency_value(&self) -> SequenceValue { self.consistency.value.clone() }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

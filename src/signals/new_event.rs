@@ -99,7 +99,8 @@ impl Bus {
 
             let event = schemas::kafka::EventMessage {
                 timestamp: now_time.to_rfc2822(),
-                timestamp_raw: now_time.timestamp(), // store the timestamp in raw form too - easier to query
+                // Store the timestamp in raw form too - easier to query.
+                timestamp_raw: now_time.timestamp(),
                 sender: receipt.sender.clone(),
                 event_type: raw_event.event_type.clone(),
                 data: raw_event.data.clone(),
@@ -109,18 +110,10 @@ impl Bus {
             };
 
             let key = raw_event.consistency.key.clone();
-            let success = if let Some(x) = self.consistency.get(&key){
-                if value == (x + 1) {
-                    true
-                } else {
-                    false
-                }
+            let success = if let Some(x) = self.consistency.get(&key) {
+                value == (x + 1)
             } else {
-                if value == 0 {
-                    true
-                } else {
-                    false
-                }
+                value == 0
             };
 
             let mut status = "inconsistent";
@@ -128,7 +121,8 @@ impl Bus {
                 self.consistency.insert(key, value);
                 status = "success";
 
-                info!("sending event to kafka: sequencekey='{}', sequencevalue={}", raw_event.consistency.key.clone(), value);
+                info!("sending event to kafka: sequence_key='{}', sequence_value={}",
+                      raw_event.consistency.key.clone(), value);
                 self.send_to_kafka(&event, &event.event_type)?;
 
                 // Do a separate hash to include timestamp, sender etc to make the hash always
@@ -144,12 +138,6 @@ impl Bus {
                 checksum: self.hash(&event.data.clone())?,
                 status: status.to_string()
             });
-
-            self.send_to_kafka(&event, &event.event_type)?;
-
-            // do a separate hash to include timestamp, sender etc to make the hash always unique
-            let hash_all = self.hash(&event.clone())?;
-            self.persist_to_couchbase(&event, &hash_all.to_string())?;
         }
 
         info!("sending receipt to the client");

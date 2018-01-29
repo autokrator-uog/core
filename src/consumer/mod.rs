@@ -91,7 +91,7 @@ impl Consumer {
             consistency: parsed.consistency,
         };
 
-        self.bus.send(signals::SendToAllClients(message, parsed.event_type));
+        self.bus.send(signals::PropagateEvent(message, parsed.event_type));
         debug!("finished processing message from kafka");
         Ok(())
     }

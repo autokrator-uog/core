@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::net::SocketAddr;
 
 use actix::{Address, Context, Handler, ResponseType};
@@ -24,6 +25,7 @@ impl Handler<Connect> for Bus {
             address: message.session,
             registered_types: RegisteredTypes::All,
             client_type: None,
+            consistency_keys: HashSet::new(),
         };
 
         if let Some(_) = self.sessions.insert(message.addr, details) {
