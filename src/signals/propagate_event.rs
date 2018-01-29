@@ -45,7 +45,7 @@ impl Bus {
 
         info!("sending message registration check: client='{}' \
               registered_types='RegisteredTypes::{:?}' \
-              type=`{}` is_registered='{:?}' sending='{:?}'",
+              type='{}' is_registered='{:?}' sending='{:?}'",
               socket, details.registered_types, event_type, details.client_type.is_some(),
               should_send);
         should_send
@@ -56,10 +56,10 @@ impl Bus {
         where T: Consistency + Serialize + Send + Clone + 'static
     {
         let socket = if let Some(socket) = self.sticky_consistency.get(&event.consistency_key()) {
-            debug!("found sticky client for: key=`{}`", event.consistency_key());
+            debug!("found sticky client for: key='{}'", event.consistency_key());
             *socket
         } else {
-            debug!("finding non-sticky client for: client_type=`{}`", client_type);
+            debug!("finding non-sticky client for: client_type='{}'", client_type);
             match self.round_robin_state.get_mut(client_type) {
                 Some(queue) => {
                     match queue.pop_front() {
@@ -89,7 +89,7 @@ impl Bus {
         where T: Consistency + Serialize + Send + Clone + 'static
     {
         let types = self.round_robin_state.keys().cloned().collect::<Vec<_>>();
-        debug!("checking client types: client_types=`{:?}`", types);
+        debug!("checking client types: client_types='{:?}'", types);
         for client_type in types {
             info!("sending to client type: client_type='{}'", client_type);
             // For each client type, we take the next available round robin selected client.

@@ -22,12 +22,12 @@ impl Bus {
         if let Some(details) = self.sessions.get(&message.addr) {
             // We also need to remove any sticky consistency mappings for this client.
             for consistency_key in details.consistency_keys.iter() {
-                debug!("attempting to remove consistency key: key=`{}`", consistency_key);
+                debug!("attempting to remove consistency key: key='{}'", consistency_key);
                 match self.sticky_consistency.remove(consistency_key) {
                     Some(_) => debug!("removed consistency key and client from sticky mapping: \
-                                       key=`{}` client=`{}`", consistency_key, message.addr),
+                                       key='{}' client='{}'", consistency_key, message.addr),
                     None => error!("consistency key was not in sticky consistency map: \
-                                    key=`{}`", consistency_key),
+                                    key='{}'", consistency_key),
                 }
             }
 
