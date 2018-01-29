@@ -74,6 +74,15 @@ impl Session {
                 self.bus.send(register);
                 info!("sent register message to bus");
             },
+            "ack" => {
+                info!("sending awknowledgement message to bus");
+                let awknowledgement = signals::Awknowledgement {
+                    message: contents,
+                    addr: self.addr,
+                };
+                self.bus.send(awknowledgement);
+                info!("sent awknowledgement message to bus");
+            },
             _ => {
                 return Err(Error::from(ErrorKind::InvalidWebsocketMessageType));
             },

@@ -2,8 +2,9 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
-use failure::Error;
+use failure::{Error, ResultExt};
 use serde::Serialize;
+use serde_json::to_string;
 
 use bus::{Bus, SequenceKey, SequenceValue, SessionDetails, RegisteredTypes};
 use error::ErrorKind;
@@ -80,6 +81,10 @@ impl Bus {
             self.sticky_consistency.insert(sticky_key.clone(), socket);
             details.consistency_keys.insert(sticky_key);
 
+            // Keep track of this event as unawknowledged.
+            let serialized_event = to_string(&event).context(ErrorKind::ParseJsonFromKafka)?;
+            details.unawknowledged_events.insert(serialized_event);
+
             Ok((socket.clone(), details.clone()))
         } else {
             Err(Error::from(ErrorKind::SessionNotInHashMap))
@@ -105,8 +110,7 @@ impl Bus {
                 // an issue.
                 if self.should_send_to_client(socket, details.clone(), event_type.clone()) {
                     info!("sending 'send to client' signal: client='{}'", socket);
-                    let cloned = event.clone();
-                    details.address.send(SendToClient(cloned));
+                    details.address.send(SendToClient(event.clone()));
                 } else {
                     info!("not sending 'send to client' signal: client='{}'", socket);
                 }

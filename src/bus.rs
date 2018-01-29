@@ -36,6 +36,13 @@ pub struct SessionDetails {
     /// This field contains which consistency keys this session is handling through sticky
     /// round robin.
     pub consistency_keys: HashSet<(String, SequenceKey)>,
+    /// This field contains the unawknowledged messages sent to this session that should be resent
+    /// if this session disconnects and fails to awknowledge the finished processing of this event.
+    ///
+    /// We store the events as strings here since we are unable to implement `Hash` on the `Value`
+    /// type from `serde_json`. This should not contain the `message_type` field and should not be
+    /// pretty printed.
+    pub unawknowledged_events: HashSet<String>,
 }
 
 /// Bus maintains the state that pertains to all clients and allows clients to send messages

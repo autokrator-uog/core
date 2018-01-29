@@ -1,9 +1,13 @@
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
+use failure::Error;
+use serde_json::{to_string_pretty, from_str};
 
 use bus::Bus;
+use error::ErrorKind;
 use helpers::VecDequeExt;
+use schemas::outgoing::EventMessage;
 
 /// The `Disconnect` message is sent to the Bus when a client disconnects.
 #[derive(Clone)]
@@ -51,17 +55,39 @@ impl Bus {
             error!("client is not present in sessions. this is a bug.");
         }
     }
+
+    fn handle_unawknowledged_events(&mut self, message: Disconnect) -> Result<(), Error> {
+        debug!("processing unawknowledged events for disconnecting client: client='{}'",
+               message.addr);
+        let unawknowledged_events = match self.sessions.get(&message.addr) {
+            Some(details) => details.unawknowledged_events.clone(),
+            None => return Err(Error::from(ErrorKind::SessionNotInHashMap)),
+        };
+
+        for unawknowledged_event in unawknowledged_events.iter() {
+            let deserialized_event: EventMessage = from_str(unawknowledged_event)?;
+            debug!("re-propagating unawknowledged event: event=\n{}",
+                   to_string_pretty(&deserialized_event)?);
+            self.propagate_event(deserialized_event.clone(), deserialized_event.event_type);
+        }
+
+        Ok(())
+    }
 }
 
 impl Handler<Disconnect> for Bus {
     type Result = ();
 
-    fn handle(&mut self, message: Disconnect,
-              _: &mut Context<Self>) {
+    fn handle(&mut self, message: Disconnect, _: &mut Context<Self>) {
         info!("removing session from bus: client='{}'", message.addr);
 
         // Remove the client address from the round robin state.
         self.remove_client_from_round_robin_state(message.clone());
+
+        // Process any unawknowledged events.
+        if let Err(e) = self.handle_unawknowledged_events(message.clone()) {
+            error!("handling unawknowledged events: error='{}'", e);
+        }
 
         if let Some(_) = self.sessions.remove(&message.addr) {
             info!("removed session from bus: client='{}'", message.addr);
