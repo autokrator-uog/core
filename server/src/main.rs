@@ -2,10 +2,8 @@ extern crate actix;
 extern crate bytes;
 extern crate chrono;
 #[macro_use] extern crate clap;
-extern crate colored;
 extern crate couchbase;
 #[macro_use] extern crate failure;
-extern crate fern;
 extern crate futures;
 #[macro_use] extern crate log;
 extern crate rand;
@@ -16,6 +14,7 @@ extern crate serde_json;
 extern crate sha1;
 extern crate tokio_core;
 extern crate tokio_io;
+extern crate vicarius_common;
 extern crate websocket;
 
 mod bus;
@@ -29,10 +28,10 @@ mod session;
 mod signals;
 
 use actix::{Address, System};
-use colored::*;
 use clap::{Arg, ArgMatches, App, AppSettings, SubCommand};
 use failure::Error;
-use log::{LogLevel, LogLevelFilter};
+use log::LogLevelFilter;
+use vicarius_common::configure_logging;
 
 use bus::Bus;
 use consumer::Consumer;
@@ -86,7 +85,8 @@ fn main() {
                         .takes_value(true))
         ).get_matches();
 
-    logging(&matches);
+    let level = value_t!(matches, "log-level", LogLevelFilter).unwrap_or(LogLevelFilter::Trace);
+    configure_logging(level);
 
     match matches.subcommand() {
         ("server", Some(arguments)) => {
@@ -120,32 +120,3 @@ fn start_server(arguments: &ArgMatches) -> Result<(), Error> {
     Ok(())
 }
 
-fn logging(matches: &ArgMatches) {
-    let level = value_t!(matches, "log-level", LogLevelFilter).unwrap_or(LogLevelFilter::Trace);
-
-    fern::Dispatch::new()
-        .format(|out, message, record| {
-            let now = chrono::Local::now();
-
-            let level_colour = match record.level() {
-                LogLevel::Debug => "blue",
-                LogLevel::Info => "green",
-                LogLevel::Warn => "yellow",
-                LogLevel::Error => "red",
-                _ => "white"
-            };
-            let level = format!("{:?}", record.level()).to_uppercase().color(level_colour);
-
-            out.finish(format_args!(
-                "[{} {}] [{}] {} {}",
-                now.format("%Y-%m-%d"),
-                now.format("%H:%M:%S"),
-                record.target(),
-                level,
-                message
-            ))
-        })
-        .level(level)
-        .chain(std::io::stdout())
-        .apply().unwrap();
-}

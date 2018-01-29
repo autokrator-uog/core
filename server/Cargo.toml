@@ -8,18 +8,15 @@ authors = [
         "Patrick Menlove <patrickmenlove@hotmail.co.uk>",
         "David Wood <david@davidtw.co>"
 ]
-description = """
-Event Bus Research Prototype for Avaloq
-Built by Team SED for the University of Glasgow Level 3 Team Project
-"""
+description = "Event bus server for the Vicarius team project for Avaloq"
 
 [dependencies]
+vicarius_common = { path = "../common" }
+
 bytes = "0.4.5"
 chrono = "0.4.0"
 clap = "2.27.1"
-colored = "1.6.0"
 failure = "0.1.1"
-fern = "0.4.3"
 futures = "0.1.17"
 log = "0.3.8"
 rand = "0.4.2"
