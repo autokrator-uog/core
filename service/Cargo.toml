@@ -1,0 +1,18 @@
+[package]
+name = "vicarius_service"
+version = "0.1.0"
+authors = [
+        "Connor Jardine <connorjardine97@gmail.com>",
+        "Frank Bojen <f.bojen@gmail.com>",
+        "Naji Shehab <naji.shehab@hotmail.com>",
+        "Patrick Menlove <patrickmenlove@hotmail.co.uk>",
+        "David Wood <david@davidtw.co>"
+]
+description = "Microservice framework for the Vicarius team project for Avaloq"
+
+[dependencies]
+vicarius_common = { path = "../common" }
+
+clap = "2.27.1"
+log = "0.3.8"
+rlua = "0.11.0"
