@@ -1,5 +1,5 @@
 [package]
-name = "event-bus"
+name = "vicarius_server"
 version = "0.2.0"
 authors = [
         "Connor Jardine <connorjardine97@gmail.com>",
