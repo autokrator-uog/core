@@ -37,6 +37,10 @@ fn main() {
              .help("Websocket server address")
              .default_value("ws://localhost:8081")
              .takes_value(true))
+        .arg(Arg::with_name("input")
+             .help("Path to lua script to run as a service")
+             .index(1)
+             .required(true))
         .get_matches();
 
     let level = value_t!(matches, "log-level", LogLevelFilter).unwrap_or(LogLevelFilter::Trace);
@@ -50,7 +54,9 @@ fn main() {
 fn start_client(arguments: &ArgMatches) -> Result<(), Error> {
     let system = System::new(crate_name!());
 
-    let interpreter: Address<_> = Interpreter::launch()?;
+    let script_path = arguments.value_of("input").ok_or(
+        ErrorKind::MissingLuaScriptArgument)?;
+    let interpreter: Address<_> = Interpreter::launch(script_path)?;
 
     let server_address = arguments.value_of("server-address").ok_or(
         ErrorKind::MissingWebsocketServerArgument)?;

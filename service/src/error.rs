@@ -17,8 +17,21 @@ pub enum ErrorKind {
     #[fail(display = "Invalid websocket connection accepted")]
     InvalidWebsocketConnection,
 
-    #[fail(display = "Missing websocket server argument. This is a bug, should be a default.")]
+    #[fail(display = "Missing websocket server argument. This is a bug, should be a default")]
     MissingWebsocketServerArgument,
+    #[fail(display = "Missing Lua script argument. This is a bug, should be a default")]
+    MissingLuaScriptArgument,
+
+    #[fail(display = "Could not find a file at the provided Lua script path")]
+    LuaScriptNotFound,
+    #[fail(display = "Could not read a Lua script at the provided file path")]
+    ReadLuaScript,
+    #[fail(display = "Could not evaluate Lua script")]
+    EvaluateLuaScript,
+    #[fail(display = "Unable to create register function")]
+    CreateRegisterFunction,
+    #[fail(display = "Could not inject register function into Lua globals")]
+    InjectRegisterFunction,
 }
 
 impl Error {
