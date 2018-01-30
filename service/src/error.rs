@@ -14,8 +14,12 @@ pub struct Error {
 pub enum ErrorKind {
     #[fail(display = "Unable to create client builder")]
     WebsocketClientBuilderCreate,
-    #[fail(display = "Invalid websocket connection accepted")]
-    InvalidWebsocketConnection,
+    #[fail(display = "Received invalid message type over websockets")]
+    InvalidWebsocketMessageType,
+    #[fail(display = "Invalid JSON received on websockets")]
+    ParseJsonFromWebsockets,
+    #[fail(display = "No message type in JSON from websockets")]
+    NoMessageTypeFromWebsockets,
 
     #[fail(display = "Missing websocket server argument. This is a bug, should be a default")]
     MissingWebsocketServerArgument,
@@ -28,10 +32,40 @@ pub enum ErrorKind {
     ReadLuaScript,
     #[fail(display = "Could not evaluate Lua script")]
     EvaluateLuaScript,
+
     #[fail(display = "Unable to create register function")]
     CreateRegisterFunction,
     #[fail(display = "Could not inject register function into Lua globals")]
     InjectRegisterFunction,
+
+    #[fail(display = "Event types were not found in Lua register, was register function invoked?")]
+    MissingEventTypesRegistryValue,
+    #[fail(display = "Client type was not found in Lua register, was register function invoked?")]
+    MissingClientTypeRegistryValue,
+
+    #[fail(display = "Unable to create trace function")]
+    CreateTraceFunction,
+    #[fail(display = "Could not inject trace function into Lua globals")]
+    InjectTraceFunction,
+    #[fail(display = "Unable to create debug function")]
+    CreateDebugFunction,
+    #[fail(display = "Could not inject debug function into Lua globals")]
+    InjectDebugFunction,
+    #[fail(display = "Unable to create info function")]
+    CreateInfoFunction,
+    #[fail(display = "Could not inject info function into Lua globals")]
+    InjectInfoFunction,
+    #[fail(display = "Unable to create warn function")]
+    CreateWarnFunction,
+    #[fail(display = "Could not inject warn function into Lua globals")]
+    InjectWarnFunction,
+    #[fail(display = "Unable to create error function")]
+    CreateErrorFunction,
+    #[fail(display = "Could not inject error function into Lua globals")]
+    InjectErrorFunction,
+
+    #[fail(display = "Failed to serialize value to json for sending")]
+    SerializeJsonForSending,
 }
 
 impl Error {

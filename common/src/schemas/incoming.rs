@@ -108,6 +108,7 @@ pub struct QueryMessage {
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct RegisterMessage {
+    pub message_type: String,
     pub event_types: Vec<String>,
     pub client_type: String,
 }
@@ -179,6 +180,7 @@ mod event_tests {
 
         assert!(parsed.is_ok());
         if let Ok(message) = parsed {
+            assert_eq!(message.message_type, "register");
             assert_eq!(message.event_types[0], "deposit");
             assert_eq!(message.event_types[1], "withdrawal");
             assert_eq!(message.client_type, "transaction");

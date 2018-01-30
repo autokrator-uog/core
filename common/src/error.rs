@@ -15,6 +15,10 @@ pub struct Error {
 pub enum ErrorKind {
     #[fail(display = "Invalid consistency value type recieved in incoming event message")]
     ParseConsistencyValue,
+    #[fail(display = "Failed to parse bytes as UTF8 string")]
+    ParseBytesAsUtf8,
+    #[fail(display = "Received invalid message type over websockets")]
+    InvalidWebsocketMessageType,
 }
 
 impl Error {

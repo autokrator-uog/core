@@ -2,6 +2,8 @@ extern crate actix;
 #[macro_use] extern crate clap;
 #[macro_use] extern crate failure;
 #[macro_use] extern crate log;
+extern crate serde;
+extern crate serde_json;
 extern crate rlua;
 extern crate vicarius_common;
 extern crate websocket;
@@ -9,6 +11,7 @@ extern crate websocket;
 mod client;
 mod error;
 mod interpreter;
+mod signals;
 
 use actix::{Address, System};
 use clap::{Arg, ArgMatches, App};

@@ -1,7 +1,8 @@
-function new_event()
+function new_event(event)
+    info(event)
 end
 
 function receipt()
 end
 
-register("transaction", new_event, receipt)
+register("transaction", {"deposit", "withdrawal"}, new_event, receipt)

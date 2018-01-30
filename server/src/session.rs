@@ -1,9 +1,9 @@
 use std::net::SocketAddr;
-use std::str::from_utf8;
 
 use actix::{Actor, Address, AsyncContext, Context, FramedActor, FramedCell};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
+use vicarius_common::websocket_message_contents;
 use websocket::WebSocketError;
 use websocket::async::TcpStream;
 use websocket::codec::ws::MessageCodec;
@@ -36,7 +36,8 @@ impl Session {
     /// Process an incoming message on the Websockets connection.
     fn process_message(&mut self, message: OwnedMessage,
                        ctx: &mut Context<Self>) -> Result<(), Error> {
-        let contents = self.get_message_contents(message)?;
+        let contents = websocket_message_contents(message).context(
+            ErrorKind::InvalidWebsocketMessageType)?;
 
         let parsed_contents: Value = from_str(&contents).context(
                 ErrorKind::ParseJsonFromWebsockets)?;
@@ -91,32 +92,6 @@ impl Session {
 
         Ok(())
     }
-
-    /// Returns the contents of a message from a Websockets message.
-    fn get_message_contents(&mut self, message: OwnedMessage) -> Result<String, Error> {
-        match message {
-            OwnedMessage::Text(m) => Ok(m),
-            OwnedMessage::Binary(b) => {
-                Ok(from_utf8(&b).context(ErrorKind::ParseBytesAsUtf8)?.to_string())
-            },
-            OwnedMessage::Close(_) => {
-                // We don't stop the actor here as this causes issues with Actix. The stream
-                // closes itself in a moment.
-                info!("client has disconnected, stream will close and session will be removed \
-                       momentarily: client='{}'", self.addr);
-                Err(Error::from(ErrorKind::InvalidWebsocketMessageType))
-            },
-            OwnedMessage::Ping(d) => {
-                self.framed.send(OwnedMessage::Pong(d));
-                Err(Error::from(ErrorKind::InvalidWebsocketMessageType))
-            }
-            OwnedMessage::Pong(d) => {
-                self.framed.send(OwnedMessage::Ping(d));
-                Err(Error::from(ErrorKind::InvalidWebsocketMessageType))
-            }
-        }
-    }
-
 }
 
 impl Actor for Session {

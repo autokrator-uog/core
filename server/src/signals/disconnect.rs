@@ -3,11 +3,11 @@ use std::net::SocketAddr;
 use actix::{Context, Handler, ResponseType};
 use failure::Error;
 use serde_json::{to_string_pretty, from_str};
+use vicarius_common::VecDequeExt;
+use vicarius_common::schemas::outgoing::EventMessage;
 
 use bus::Bus;
 use error::ErrorKind;
-use helpers::VecDequeExt;
-use schemas::outgoing::EventMessage;
 
 /// The `Disconnect` message is sent to the Bus when a client disconnects.
 #[derive(Clone)]
