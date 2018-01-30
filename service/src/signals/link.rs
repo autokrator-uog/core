@@ -10,7 +10,7 @@ use interpreter::{Interpreter, LUA_EVENT_TYPES_REGISTRY_KEY, LUA_CLIENT_TYPE_REG
 use signals::SendMessage;
 
 /// The `Link` signal is sent from the client to the interpreter when the client starts so that
-/// the client can provide the interpreter actor with a reply address.
+/// the register message can be sent.
 pub struct Link {
     pub client: Address<Client>,
 }
@@ -48,6 +48,5 @@ impl Handler<Link> for Interpreter {
             error!("closing service, register function was not invoked: error='{:?}'", e);
             exit(1);
         }
-        self.client = Some(message.client);
     }
 }

@@ -9,14 +9,12 @@ use interpreter::{
     LUA_RECEIPT_HANDLER_REGISTRY_KEY
 };
 
-pub fn create_lua(script: String) -> Result<Lua, Error> {
+pub fn create_lua() -> Result<Lua, Error> {
     let lua = Lua::new();
 
     inject_register_function(&lua)?;
     inject_logging_functions(&lua)?;
 
-    // Run the script provided.
-    lua.eval::<()>(&script, None).context(ErrorKind::EvaluateLuaScript)?;
     Ok(lua)
 }
 

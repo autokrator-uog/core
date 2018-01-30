@@ -13,11 +13,15 @@ mod error;
 mod interpreter;
 mod signals;
 
-use actix::{Address, System};
+use std::process::exit;
+
+use actix::{Address, Arbiter, AsyncContext, FramedActor, System};
 use clap::{Arg, ArgMatches, App};
-use failure::Error;
+use failure::{Error, ResultExt};
 use log::LogLevelFilter;
 use vicarius_common::configure_logging;
+use websocket::ClientBuilder;
+use websocket::async::futures::{self, Future};
 
 use client::Client;
 use error::ErrorKind;
@@ -49,21 +53,45 @@ fn main() {
     let level = value_t!(matches, "log-level", LogLevelFilter).unwrap_or(LogLevelFilter::Trace);
     configure_logging(level);
 
-    if let Err(e) = start_client(&matches) {
+    if let Err(e) = start_client(matches) {
         error!("failed to start client: error='{}'", e);
     }
 }
 
-fn start_client(arguments: &ArgMatches) -> Result<(), Error> {
+fn start_client(arguments: ArgMatches) -> Result<(), Error> {
     let system = System::new(crate_name!());
 
-    let script_path = arguments.value_of("input").ok_or(
-        ErrorKind::MissingLuaScriptArgument)?;
-    let interpreter: Address<_> = Interpreter::launch(script_path)?;
-
     let server_address = arguments.value_of("server-address").ok_or(
-        ErrorKind::MissingWebsocketServerArgument)?;
-    Client::launch(server_address, interpreter.clone())?;
+        ErrorKind::MissingWebsocketServerArgument)?.to_owned();
+    let script_path = arguments.value_of("input").ok_or(
+        ErrorKind::MissingLuaScriptArgument)?.to_owned();
+
+    info!("starting websocket client: server='{}'", server_address);
+    Arbiter::handle().spawn(
+        ClientBuilder::new(&server_address)
+            .context(ErrorKind::WebsocketClientBuilderCreate)?
+            .async_connect_insecure(Arbiter::handle())
+            .and_then(|(framed, _)| {
+                let _: () = Client::create_with(framed, move |ctx, framed| {
+                    let addr: Address<Interpreter> = match Interpreter::launch(script_path,
+                                                                               ctx.address()) {
+                        Ok(addr) => addr,
+                        Err(e) => {
+                            error!("closing service, failed to start interpreter: error='{:?}'",
+                                   e);
+                            exit(1);
+                        },
+                    };
+
+                    Client { interpreter: addr, framed: framed }
+                });
+
+                futures::future::ok(())
+            })
+            .map_err(|e| {
+                error!("starting websocket client: error='{:?}'", e);
+            })
+    );
 
     system.run();
     Ok(())

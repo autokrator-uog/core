@@ -89,6 +89,7 @@ fn consistency_value_parse<'de, D>(deserializer: D) -> Result<ConsistencyValue, 
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewEventMessage {
+    pub message_type: String,
     pub events: Vec<Event>,
 }
 
@@ -153,6 +154,7 @@ mod event_tests {
 
         assert!(parsed.is_ok());
         if let Ok(message) = parsed {
+            assert_eq!(message.message_type, "new");
             assert_eq!(message.events[0].event_type, "deposit");
             assert_eq!(message.events[0].correlation_id, 94859829321);
             assert_eq!(message.events[0].data["account"], 837);

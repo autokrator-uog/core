@@ -38,6 +38,11 @@ pub enum ErrorKind {
     #[fail(display = "Could not inject register function into Lua globals")]
     InjectRegisterFunction,
 
+    #[fail(display = "Unable to create send function")]
+    CreateSendFunction,
+    #[fail(display = "Could not inject send function into Lua globals")]
+    InjectSendFunction,
+
     #[fail(display = "Event types were not found in Lua register, was register function invoked?")]
     MissingEventTypesRegistryValue,
     #[fail(display = "Client type was not found in Lua register, was register function invoked?")]

@@ -1,9 +1,8 @@
-use actix::{Actor, Address, Arbiter, AsyncContext, Context, FramedActor, FramedCell};
+use actix::{Actor, Address, AsyncContext, Context, FramedActor, FramedCell};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
-use websocket::{ClientBuilder, WebSocketError};
+use websocket::WebSocketError;
 use websocket::async::TcpStream;
-use websocket::async::futures::{self, Future};
 use websocket::codec::ws::MessageCodec;
 use websocket::message::OwnedMessage;
 use vicarius_common::websocket_message_contents;
@@ -14,30 +13,7 @@ use signals::{Event, Link, Receipt, Registration};
 
 pub struct Client {
     pub framed: FramedCell<TcpStream, MessageCodec<OwnedMessage>>,
-    interpreter: Address<Interpreter>,
-}
-
-impl Client {
-    /// Start the websockets server given the arguments for the `server` subcommand.
-    pub fn launch(server_address: &str, interpreter: Address<Interpreter>) -> Result<(), Error> {
-        info!("starting websocket client: server='{}'", server_address);
-        Arbiter::handle().spawn(
-            ClientBuilder::new(server_address)
-                .context(ErrorKind::WebsocketClientBuilderCreate)?
-                .async_connect_insecure(Arbiter::handle())
-                .and_then(|(framed, _)| {
-                    let _: () = Client::create_with(framed, move |_, framed| {
-                        Self { interpreter: interpreter, framed: framed }
-                    });
-
-                    futures::future::ok(())
-                })
-                .map_err(|e| {
-                    error!("starting websocket client: error='{:?}'", e);
-                })
-        );
-        Ok(())
-    }
+    pub interpreter: Address<Interpreter>,
 }
 
 impl Actor for Client {
