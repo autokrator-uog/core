@@ -1,7 +1,14 @@
 extern crate chrono;
 extern crate colored;
+#[macro_use] extern crate failure;
 extern crate fern;
 extern crate log;
+extern crate serde;
+#[macro_use] extern crate serde_derive;
+extern crate serde_json;
+
+mod error;
+pub mod schemas;
 
 use colored::*;
 use log::{LogLevel, LogLevelFilter};

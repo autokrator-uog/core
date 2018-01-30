@@ -7,6 +7,7 @@ use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
+use vicarius_common::schemas::common::{SequenceKey, SequenceValue};
 
 use error::ErrorKind;
 use persistence::connect_to_bucket;

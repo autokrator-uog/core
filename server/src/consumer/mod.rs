@@ -10,11 +10,11 @@ use rdkafka::config::ClientConfig;
 use rdkafka::consumer::Consumer as ConsumerTrait;
 use rdkafka::message::OwnedMessage;
 use serde_json::{from_str, to_string_pretty};
+use vicarius_common::schemas;
 
 use bus::Bus;
 use consumer::stream::StreamConsumer;
 use error::ErrorKind;
-use schemas;
 use signals;
 
 /// `KafkaMessage` is a wrapper type that allows us to implement `ResponseType` for Kafka's

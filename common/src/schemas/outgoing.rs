@@ -1,11 +1,10 @@
 /// This module contains the schemas for all the outgoing (to websockets) messages we get.
 /// We include the `message_type` field in these. Top-level structs are appended with
 /// 'Message'.
+
 use serde_json::Value;
 
-use bus::{SequenceKey, SequenceValue};
-use schemas::common::Consistency as ConsistencySchema;
-use signals::Consistency;
+use schemas::common::{Consistency as ConsistencySchema, SequenceKey, SequenceValue};
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct ReceiptMessage {
@@ -30,6 +29,13 @@ pub struct EventMessage {
     pub data: Value,
     pub correlation_id: usize,
     pub consistency: ConsistencySchema,
+}
+
+/// This trait is used to access the consistency information for any arbitary type that should
+/// be propagated to clients.
+pub trait Consistency {
+    fn consistency_key(&self) -> SequenceKey;
+    fn consistency_value(&self) -> SequenceValue;
 }
 
 impl Consistency for EventMessage {

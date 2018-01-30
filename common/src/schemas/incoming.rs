@@ -1,13 +1,16 @@
 /// This module contains the schemas for all the incoming messages we get. We don't include
 /// the `message_type` field in these. Top-level structs are appended with 'Message'.
-use serde_json::Value;
+
 use std::fmt;
 use std::str::FromStr;
 use std::marker::PhantomData;
-use serde::de::{self, Deserializer, Visitor};
-use bus::SequenceKey;
-use error::ErrorKind;
+
 use failure::{ResultExt, Error};
+use serde::de::{self, Deserializer, Visitor};
+use serde_json::Value;
+
+use schemas::common::SequenceKey;
+use error::ErrorKind;
 
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub enum ConsistencyValue {

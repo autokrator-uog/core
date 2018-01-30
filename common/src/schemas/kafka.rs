@@ -1,7 +1,9 @@
 /// This module contains the schemas for all the outgoing (to Kafka) messages we get.
 /// We don't include the `message_type` field in these. Top-level structs are appended with
 /// 'Message'.
+///
 use serde_json::Value;
+
 use schemas::common::Consistency;
 
 #[derive(Serialize, Deserialize, Clone)]

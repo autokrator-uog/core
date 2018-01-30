@@ -8,14 +8,14 @@ use futures::Future;
 use serde::Serialize;
 use serde_json::{from_str, to_string, to_string_pretty};
 use sha1::Sha1;
+use vicarius_common::schemas;
+use vicarius_common::schemas::incoming::ConsistencyValue;
+use vicarius_common::schemas::common::Consistency;
 
 use bus::Bus;
 use error::ErrorKind;
-use schemas;
 use session::Session;
 use signals::SendToClient;
-use schemas::incoming::ConsistencyValue;
-use schemas::common::Consistency;
 
 /// The `NewEvent` message is sent to the Bus when new events are sent from websockets.
 pub struct NewEvent {

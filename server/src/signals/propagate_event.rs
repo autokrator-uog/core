@@ -5,17 +5,11 @@ use actix::{Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use serde::Serialize;
 use serde_json::to_string;
+use vicarius_common::schemas::outgoing::Consistency;
 
-use bus::{Bus, SequenceKey, SequenceValue, SessionDetails, RegisteredTypes};
+use bus::{Bus, SessionDetails, RegisteredTypes};
 use error::ErrorKind;
 use signals::SendToClient;
-
-/// This trait is used to access the consistency information for any arbitary type that should
-/// be propagated to clients.
-pub trait Consistency {
-    fn consistency_key(&self) -> SequenceKey;
-    fn consistency_value(&self) -> SequenceValue;
-}
 
 /// The `PropagateEvent` message is sent to the Bus when a message needs to be sent
 /// to all appropriate clients. This should not be used for sending receipts, registrations or

@@ -4,11 +4,11 @@ use couchbase::{N1qlResult};
 use failure::{Error, Fail, ResultExt};
 use futures::{Stream};
 use serde_json::{from_str, to_string_pretty};
+use vicarius_common::schemas;
+use vicarius_common::schemas::kafka::EventMessage;
 
 use bus::Bus;
 use error::ErrorKind;
-use schemas;
-use schemas::kafka::EventMessage;
 use session::Session;
 use signals::SendToClient;
 

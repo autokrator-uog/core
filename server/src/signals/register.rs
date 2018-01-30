@@ -5,12 +5,12 @@ use std::net::SocketAddr;
 use actix::{Address, Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, to_string_pretty};
+use vicarius_common::schemas::incoming::RegisterMessage;
+use vicarius_common::schemas::outgoing::Registration;
 
 use bus::{Bus, RegisteredTypes};
 use error::ErrorKind;
 use helpers::VecDequeExt;
-use schemas::incoming::RegisterMessage;
-use schemas::outgoing::Registration;
 use session::Session;
 use signals::SendToClient;
 
