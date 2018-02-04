@@ -3,7 +3,7 @@ mod lua;
 use std::fs::File;
 use std::io::Read;
 
-use actix::{Actor, Address, Context};
+use actix::{Actor, Context, SyncAddress};
 use failure::{Error, ResultExt};
 use rlua::Lua;
 use serde_json::from_str;
@@ -20,12 +20,12 @@ pub const LUA_EVENT_HANDLER_REGISTRY_KEY: &'static str = "SERV_EVENT_HANDLER";
 pub const LUA_RECEIPT_HANDLER_REGISTRY_KEY: &'static str = "SERV_RECEIPT_HANDLER";
 
 pub struct Interpreter {
-    pub client: Address<Client>,
+    pub client: Option<SyncAddress<Client>>,
     pub lua: Lua,
 }
 
 impl Interpreter {
-    pub fn launch(script_path: String, client: Address<Client>) -> Result<Address<Self>, Error> {
+    pub fn new(script_path: String) -> Result<Self, Error> {
         let mut file = File::open(&script_path).context(ErrorKind::LuaScriptNotFound)?;
         let mut contents = String::new();
         file.read_to_string(&mut contents).context(ErrorKind::ReadLuaScript)?;
@@ -35,7 +35,7 @@ impl Interpreter {
             // don't depend on the internal Interpreter state. This helps avoid pesky lifetime
             // issues.
             lua: create_lua()?,
-            client: client,
+            client: None,
         };
 
         // The send function needs access to the client field of the interpreter and therefore
@@ -46,13 +46,13 @@ impl Interpreter {
         // the script.
         interpreter.lua.eval::<()>(&contents, None).context(ErrorKind::EvaluateLuaScript)?;
 
-        Ok(interpreter.start())
+        Ok(interpreter)
     }
 
     fn inject_send_function(&self) -> Result<(), Error> {
         // We can't clone the lua object, but we can clone the addresses that we intend to use
         // within the closure.
-        let client = self.client.clone();
+        let client = self.client.clone().ok_or(ErrorKind::ClientNotLinkedToInterpreter)?;
         let globals = self.lua.globals();
 
         let send_function = self.lua.create_function(move |_lua, message: String| {

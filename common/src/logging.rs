@@ -29,6 +29,7 @@ pub fn configure_logging(level: LogLevelFilter) {
             ))
         })
         .level(level)
+        .level_for("tokio_core", LogLevelFilter::Info)
         .chain(stdout())
         .apply().unwrap();
 }

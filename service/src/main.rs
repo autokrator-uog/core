@@ -1,4 +1,5 @@
 extern crate actix;
+extern crate actix_web;
 #[macro_use] extern crate clap;
 #[macro_use] extern crate failure;
 #[macro_use] extern crate log;
@@ -10,21 +11,19 @@ extern crate websocket;
 
 mod client;
 mod error;
+mod http;
 mod interpreter;
 mod signals;
 
-use std::process::exit;
-
-use actix::{Address, Arbiter, AsyncContext, FramedActor, System};
+use actix::{Arbiter, SyncAddress, System};
 use clap::{Arg, ArgMatches, App};
-use failure::{Error, ResultExt};
+use failure::Error;
 use log::LogLevelFilter;
 use vicarius_common::configure_logging;
-use websocket::ClientBuilder;
-use websocket::async::futures::{self, Future};
 
 use client::Client;
 use error::ErrorKind;
+use http::start_webserver;
 use interpreter::Interpreter;
 
 fn main() {
@@ -39,7 +38,14 @@ fn main() {
              .default_value("info")
              .possible_values(&["off", "trace", "debug", "info", "warn", "error"])
              .takes_value(true))
+        .arg(Arg::with_name("bind-address")
+             .short("b")
+             .long("bind")
+             .help("Address for binding HTTP server")
+             .default_value("0.0.0.0:8080")
+             .takes_value(true))
         .arg(Arg::with_name("server-address")
+             .short("s")
              .long("server")
              .help("Websocket server address")
              .default_value("ws://localhost:8081")
@@ -61,37 +67,20 @@ fn main() {
 fn start_client(arguments: ArgMatches) -> Result<(), Error> {
     let system = System::new(crate_name!());
 
+    let bind_address = arguments.value_of("bind-address").ok_or(
+        ErrorKind::MissingBindAddressArgument)?.to_owned();
     let server_address = arguments.value_of("server-address").ok_or(
         ErrorKind::MissingWebsocketServerArgument)?.to_owned();
     let script_path = arguments.value_of("input").ok_or(
         ErrorKind::MissingLuaScriptArgument)?.to_owned();
 
     info!("starting websocket client: server='{}'", server_address);
-    Arbiter::handle().spawn(
-        ClientBuilder::new(&server_address)
-            .context(ErrorKind::WebsocketClientBuilderCreate)?
-            .async_connect_insecure(Arbiter::handle())
-            .and_then(|(framed, _)| {
-                let _: () = Client::create_with(framed, move |ctx, framed| {
-                    let addr: Address<Interpreter> = match Interpreter::launch(script_path,
-                                                                               ctx.address()) {
-                        Ok(addr) => addr,
-                        Err(e) => {
-                            error!("closing service, failed to start interpreter: error='{:?}'",
-                                   e);
-                            exit(1);
-                        },
-                    };
+    let interpreter: SyncAddress<_> = Arbiter::start(|_| Interpreter::new(script_path).unwrap() );
 
-                    Client { interpreter: addr, framed: framed }
-                });
+    // Start the webserver, it needs the address of the interpreter.
+    start_webserver(bind_address, interpreter.clone())?;
 
-                futures::future::ok(())
-            })
-            .map_err(|e| {
-                error!("starting websocket client: error='{:?}'", e);
-            })
-    );
+    Client::launch(server_address, interpreter.clone())?;
 
     system.run();
     Ok(())

@@ -21,8 +21,18 @@ pub enum ErrorKind {
     #[fail(display = "No message type in JSON from websockets")]
     NoMessageTypeFromWebsockets,
 
+    #[fail(display = "Unable to bind to http port")]
+    HttpBindToPort,
+
+    #[fail(display = "Client has not linked to interpreter")]
+    ClientNotLinkedToInterpreter,
+    #[fail(display = "Client does not have a framed cell. This is a bug")]
+    ClientWithoutFramed,
+
     #[fail(display = "Missing websocket server argument. This is a bug, should be a default")]
     MissingWebsocketServerArgument,
+    #[fail(display = "Missing bind address argument. This is a bug, should be a default")]
+    MissingBindAddressArgument,
     #[fail(display = "Missing Lua script argument. This is a bug, should be a default")]
     MissingLuaScriptArgument,
 

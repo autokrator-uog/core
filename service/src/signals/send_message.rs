@@ -26,7 +26,10 @@ impl Client {
             ErrorKind::SerializeJsonForSending)?;
 
         info!("sending message: message=\n{}", pretty_serialized);
-        Ok(self.framed.send(OwnedMessage::Text(serialized)))
+        match self.framed {
+            Some(ref mut framed) => Ok(framed.send(OwnedMessage::Text(serialized))),
+            None => return Err(Error::from(ErrorKind::ClientWithoutFramed)),
+        }
     }
 }
 

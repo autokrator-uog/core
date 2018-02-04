@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use actix::{Address, Context, Handler, ResponseType};
+use actix::{Context, Handler, SyncAddress, ResponseType};
 use failure::{Error, ResultExt};
 use vicarius_common::schemas::incoming::RegisterMessage;
 
@@ -12,7 +12,7 @@ use signals::SendMessage;
 /// The `Link` signal is sent from the client to the interpreter when the client starts so that
 /// the register message can be sent.
 pub struct Link {
-    pub client: Address<Client>,
+    pub client: SyncAddress<Client>,
 }
 
 impl ResponseType for Link {
@@ -21,7 +21,7 @@ impl ResponseType for Link {
 }
 
 impl Interpreter {
-    fn send_register_message(&mut self, client: Address<Client>) -> Result<(), Error> {
+    fn send_register_message(&mut self, client: SyncAddress<Client>) -> Result<(), Error> {
         let event_types: Vec<String> = self.lua.named_registry_value(
             LUA_EVENT_TYPES_REGISTRY_KEY).context(ErrorKind::MissingEventTypesRegistryValue)?;
         let client_type: String = self.lua.named_registry_value(
@@ -44,6 +44,7 @@ impl Handler<Link> for Interpreter {
 
     fn handle(&mut self, message: Link, _: &mut Context<Self>) {
         info!("received link signal from client");
+        self.client = Some(message.client.clone());
         if let Err(e) = self.send_register_message(message.client.clone()) {
             error!("closing service, register function was not invoked: error='{:?}'", e);
             exit(1);

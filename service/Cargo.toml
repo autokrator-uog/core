@@ -11,6 +11,8 @@ authors = [
 description = "Microservice framework for the Vicarius team project for Avaloq"
 
 [dependencies]
+actix = "0.4.5"
+actix-web = "0.3.3"
 clap = "2.27.1"
 failure = "0.1.1"
 log = "0.3.8"
@@ -19,7 +21,3 @@ serde_json = "1.0.5"
 rlua = "0.11.0"
 vicarius_common = { path = "../common" }
 websocket = "0.20.2"
-
-[dependencies.actix]
-git = "https://github.com/actix/actix.git"
-rev = "ad82c51"
