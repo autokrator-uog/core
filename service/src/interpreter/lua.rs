@@ -6,7 +6,8 @@ use interpreter::{
     LUA_CLIENT_TYPE_REGISTRY_KEY,
     LUA_EVENT_HANDLER_REGISTRY_KEY,
     LUA_EVENT_TYPES_REGISTRY_KEY,
-    LUA_RECEIPT_HANDLER_REGISTRY_KEY
+    LUA_RECEIPT_HANDLER_REGISTRY_KEY,
+    LUA_HTTP_HANDLER_REGISTRY_KEY
 };
 
 pub fn create_lua() -> Result<Lua, Error> {
@@ -18,8 +19,9 @@ pub fn create_lua() -> Result<Lua, Error> {
     Ok(lua)
 }
 
-fn register(lua: &Lua, (client_type, event_types, new_event_handler, receipt_handler):
-            (String, Vec<String>, Function, Function)) -> Result<(), LuaError> {
+fn register(lua: &Lua, (client_type, event_types, new_event_handler,
+                        receipt_handler, http_handler):
+            (String, Vec<String>, Function, Function, Function)) -> Result<(), LuaError> {
     info!("received register call from script: client_type='{}'", client_type);
 
     lua.set_named_registry_value(LUA_EVENT_TYPES_REGISTRY_KEY, event_types)?;
@@ -28,6 +30,7 @@ fn register(lua: &Lua, (client_type, event_types, new_event_handler, receipt_han
     // Save our handlers so we can call them with events.
     lua.set_named_registry_value(LUA_EVENT_HANDLER_REGISTRY_KEY, new_event_handler)?;
     lua.set_named_registry_value(LUA_RECEIPT_HANDLER_REGISTRY_KEY, receipt_handler)?;
+    lua.set_named_registry_value(LUA_HTTP_HANDLER_REGISTRY_KEY, http_handler)?;
 
     Ok(())
 }

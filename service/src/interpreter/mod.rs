@@ -6,22 +6,21 @@ use std::io::Read;
 use actix::{Actor, Context, SyncAddress};
 use failure::{Error, ResultExt};
 use rlua::Lua;
-use serde_json::from_str;
-use vicarius_common::schemas::incoming::NewEventMessage;
 
 use client::Client;
 use error::ErrorKind;
 use interpreter::lua::create_lua;
-use signals::SendMessage;
 
 pub const LUA_EVENT_TYPES_REGISTRY_KEY: &'static str = "SERV_EVENT_TYPES";
 pub const LUA_CLIENT_TYPE_REGISTRY_KEY: &'static str = "SERV_CLIENT_TYPE";
+pub const LUA_HTTP_HANDLER_REGISTRY_KEY: &'static str = "SERV_HTTP_HANDLER";
 pub const LUA_EVENT_HANDLER_REGISTRY_KEY: &'static str = "SERV_EVENT_HANDLER";
 pub const LUA_RECEIPT_HANDLER_REGISTRY_KEY: &'static str = "SERV_RECEIPT_HANDLER";
 
 pub struct Interpreter {
     pub client: Option<SyncAddress<Client>>,
     pub lua: Lua,
+    pub script: String,
 }
 
 impl Interpreter {
@@ -36,41 +35,12 @@ impl Interpreter {
             // issues.
             lua: create_lua()?,
             client: None,
+            script: contents,
         };
-
-        // The send function needs access to the client field of the interpreter and therefore
-        // can't be within the lua module.
-        interpreter.inject_send_function()?;
-
-        // For our script to not error, we need to ensure everything is injected before running
-        // the script.
-        interpreter.lua.eval::<()>(&contents, None).context(ErrorKind::EvaluateLuaScript)?;
 
         Ok(interpreter)
     }
 
-    fn inject_send_function(&self) -> Result<(), Error> {
-        // We can't clone the lua object, but we can clone the addresses that we intend to use
-        // within the closure.
-        let client = self.client.clone().ok_or(ErrorKind::ClientNotLinkedToInterpreter)?;
-        let globals = self.lua.globals();
-
-        let send_function = self.lua.create_function(move |_lua, message: String| {
-            info!("received send call from script");
-
-            let parsed: Result<NewEventMessage, _> = from_str(&message);
-            if let Ok(message) = parsed {
-                client.send(SendMessage(message));
-            } else {
-                error!("failed to parse new event message from lua: message=\n{}", message);
-            }
-
-            Ok(())
-        }).context(ErrorKind::CreateSendFunction)?;
-        globals.set("send", send_function).context(ErrorKind::InjectSendFunction)?;
-
-        Ok(())
-    }
 }
 
 impl Actor for Interpreter {

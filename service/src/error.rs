@@ -57,6 +57,17 @@ pub enum ErrorKind {
     MissingEventTypesRegistryValue,
     #[fail(display = "Client type was not found in Lua register, was register function invoked?")]
     MissingClientTypeRegistryValue,
+    #[fail(display = "Event handler not found in Lua register, was register function invoked?")]
+    MissingEventHandlerRegistryValue,
+    #[fail(display = "HTTP handler not found in Lua register, was register function invoked?")]
+    MissingHttpHandlerRegistryValue,
+
+    #[fail(display = "Failure when running event handler")]
+    FailedEventHandler,
+    #[fail(display = "Failure when running HTTP handler")]
+    FailedHttpHandler,
+    #[fail(display = "Failure when parsing result from HTTP handler")]
+    ParseHttpHandlerResult,
 
     #[fail(display = "Unable to create trace function")]
     CreateTraceFunction,

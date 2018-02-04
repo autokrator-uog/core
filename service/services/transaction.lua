@@ -18,7 +18,14 @@ function new_event(event)
     }]])
 end
 
+function http(method, uri, event)
+    info("http handler called")
+    debug(method)
+    debug(uri)
+    return [[{ "orange": "green" }]]
+end
+
 function receipt()
 end
 
-register("transaction", {"deposit", "withdrawal"}, new_event, receipt)
+register("transaction", {"deposit", "withdrawal"}, new_event, receipt, http)

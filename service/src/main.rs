@@ -2,6 +2,7 @@ extern crate actix;
 extern crate actix_web;
 #[macro_use] extern crate clap;
 #[macro_use] extern crate failure;
+extern crate http;
 #[macro_use] extern crate log;
 extern crate serde;
 extern crate serde_json;
@@ -11,9 +12,11 @@ extern crate websocket;
 
 mod client;
 mod error;
-mod http;
 mod interpreter;
 mod signals;
+mod web;
+
+use std::process::exit;
 
 use actix::{Arbiter, SyncAddress, System};
 use clap::{Arg, ArgMatches, App};
@@ -23,8 +26,8 @@ use vicarius_common::configure_logging;
 
 use client::Client;
 use error::ErrorKind;
-use http::start_webserver;
 use interpreter::Interpreter;
+use web::start_webserver;
 
 fn main() {
     let matches = App::new(crate_name!())
@@ -75,7 +78,15 @@ fn start_client(arguments: ArgMatches) -> Result<(), Error> {
         ErrorKind::MissingLuaScriptArgument)?.to_owned();
 
     info!("starting websocket client: server='{}'", server_address);
-    let interpreter: SyncAddress<_> = Arbiter::start(|_| Interpreter::new(script_path).unwrap() );
+    let interpreter: SyncAddress<_> = Arbiter::start(|_| {
+        match Interpreter::new(script_path) {
+            Ok(interpreter) => interpreter,
+            Err(e) => {
+                error!("failed to create interpreter: error='{:?}'", e);
+                exit(1);
+            },
+        }
+    });
 
     // Start the webserver, it needs the address of the interpreter.
     start_webserver(bind_address, interpreter.clone())?;
