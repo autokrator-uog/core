@@ -20,6 +20,9 @@ pub enum RegisteredTypes {
     Some(Vec<String>),
 }
 
+pub type SequenceKey = String;
+pub type SequenceValue = u32;
+
 /// SessionDetails contains all the information that relates to a given session that is
 /// connected.
 #[derive(Clone)]
@@ -32,11 +35,8 @@ pub struct SessionDetails {
     pub registered_types: RegisteredTypes,
     /// This field contains which consistency keys this session is handling through sticky
     /// round robin.
-    pub consistency_keys: HashSet<String>,
+    pub consistency_keys: HashSet<(String, SequenceKey)>,
 }
-
-pub type SequenceKey = String;
-pub type SequenceValue = u32;
 
 /// Bus maintains the state that pertains to all clients and allows clients to send messages
 /// to each other.
@@ -56,7 +56,7 @@ pub struct Bus {
     pub round_robin_state: HashMap<String, VecDeque<SocketAddr>>,
     /// This field contains a mapping from each sequence key to the `SocketAddr` of the client
     /// that handles the events for that key. It is checked before the round robin state.
-    pub sticky_consistency: HashMap<SequenceKey, SocketAddr>,
+    pub sticky_consistency: HashMap<(String, SequenceKey), SocketAddr>,
     /// This field contains the topic that events should be sent to in Kafka.
     pub topic: String,
     /// This field contains the mapping of the sequence key to the last seen sequence value.

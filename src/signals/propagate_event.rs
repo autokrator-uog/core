@@ -55,7 +55,8 @@ impl Bus {
                                   client_type: &String) -> Result<(SocketAddr, SessionDetails), Error>
         where T: Consistency + Serialize + Send + Clone + 'static
     {
-        let socket = if let Some(socket) = self.sticky_consistency.get(&event.consistency_key()) {
+        let sticky_key = (client_type.clone(), event.consistency_key());
+        let socket = if let Some(socket) = self.sticky_consistency.get(&sticky_key) {
             debug!("found sticky client for: key='{}'", event.consistency_key());
             *socket
         } else {
@@ -76,8 +77,8 @@ impl Bus {
 
         if let Some(details) = self.sessions.get_mut(&socket) {
             // Ensure that this client always receives this consistency key in future.
-            self.sticky_consistency.insert(event.consistency_key(), socket);
-            details.consistency_keys.insert(event.consistency_key());
+            self.sticky_consistency.insert(sticky_key.clone(), socket);
+            details.consistency_keys.insert(sticky_key);
 
             Ok((socket.clone(), details.clone()))
         } else {
