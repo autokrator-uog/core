@@ -29,3 +29,9 @@ function receipt()
 end
 
 register("transaction", {"deposit", "withdrawal"}, new_event, receipt, http)
+
+local test = "blue"
+persist("orange", test)
+info("persisted value")
+local another = query("orange")
+debug(another)

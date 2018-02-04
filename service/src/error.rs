@@ -33,8 +33,13 @@ pub enum ErrorKind {
     MissingWebsocketServerArgument,
     #[fail(display = "Missing bind address argument. This is a bug, should be a default")]
     MissingBindAddressArgument,
+    #[fail(display = "Missing redis address argument. This is a bug, should be a default")]
+    MissingRedisAddressArgument,
     #[fail(display = "Missing Lua script argument. This is a bug, should be a default")]
     MissingLuaScriptArgument,
+
+    #[fail(display = "Failed to create Redis client")]
+    RedisClientCreate,
 
     #[fail(display = "Could not find a file at the provided Lua script path")]
     LuaScriptNotFound,
@@ -52,6 +57,15 @@ pub enum ErrorKind {
     CreateSendFunction,
     #[fail(display = "Could not inject send function into Lua globals")]
     InjectSendFunction,
+
+    #[fail(display = "Unable to create query function")]
+    CreateQueryFunction,
+    #[fail(display = "Could not inject query function into Lua globals")]
+    InjectQueryFunction,
+    #[fail(display = "Unable to create persist function")]
+    CreatePersistFunction,
+    #[fail(display = "Could not inject persist function into Lua globals")]
+    InjectPersistFunction,
 
     #[fail(display = "Event types were not found in Lua register, was register function invoked?")]
     MissingEventTypesRegistryValue,

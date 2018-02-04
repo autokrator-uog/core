@@ -6,6 +6,7 @@ extern crate http;
 #[macro_use] extern crate log;
 extern crate serde;
 extern crate serde_json;
+extern crate redis;
 extern crate rlua;
 extern crate vicarius_common;
 extern crate websocket;
@@ -47,6 +48,12 @@ fn main() {
              .help("Address for binding HTTP server")
              .default_value("0.0.0.0:8080")
              .takes_value(true))
+        .arg(Arg::with_name("redis-address")
+             .short("r")
+             .long("redis")
+             .help("Redis server address")
+             .default_value("redis://localhost/")
+             .takes_value(true))
         .arg(Arg::with_name("server-address")
              .short("s")
              .long("server")
@@ -72,6 +79,8 @@ fn start_client(arguments: ArgMatches) -> Result<(), Error> {
 
     let bind_address = arguments.value_of("bind-address").ok_or(
         ErrorKind::MissingBindAddressArgument)?.to_owned();
+    let redis_address = arguments.value_of("redis-address").ok_or(
+        ErrorKind::MissingRedisAddressArgument)?.to_owned();
     let server_address = arguments.value_of("server-address").ok_or(
         ErrorKind::MissingWebsocketServerArgument)?.to_owned();
     let script_path = arguments.value_of("input").ok_or(
@@ -79,7 +88,7 @@ fn start_client(arguments: ArgMatches) -> Result<(), Error> {
 
     info!("starting websocket client: server='{}'", server_address);
     let interpreter: SyncAddress<_> = Arbiter::start(|_| {
-        match Interpreter::new(script_path) {
+        match Interpreter::new(script_path, redis_address) {
             Ok(interpreter) => interpreter,
             Err(e) => {
                 error!("failed to create interpreter: error='{:?}'", e);
