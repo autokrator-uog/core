@@ -1,7 +1,15 @@
 use std::cell::RefCell;
 use std::net::SocketAddr;
 
-use actix::{Actor, Address, Arbiter, AsyncContext, Context, FramedActor, Handler, ResponseType};
+use actix::{
+    Actor,
+    Address,
+    Arbiter,
+    Context,
+    FramedReader,
+    ResponseType,
+    StreamHandler
+};
 use failure::{Error, Fail, ResultExt};
 use rand::{self, Rng, ThreadRng};
 use websocket::async::{Server as WebsocketServer, TcpStream};
@@ -42,14 +50,14 @@ impl Server {
         info!("starting websocket server on: address='{}'", bind_addr);
         let _: () = Self::create(|ctx| {
             // Add the stream to the server.
-            ctx.add_stream(listener.incoming()
+            Self::add_stream(listener.incoming()
                .map_err(|InvalidConnection { error, ..}| {
                    // Wrap error in our own error type.
                    Error::from(error.context(ErrorKind::InvalidWebsocketConnection))
                }).map(|(upgrade, addr)| {
                    // Wrap connections in our wrapper type that implements ResponseType.
                    Connection { upgrade: upgrade, addr: addr }
-               }));
+               }), ctx);
 
             // Return a instance of Server from closure.
             Self {
@@ -69,28 +77,19 @@ impl Actor for Server {
     fn stopped(&mut self, _ctx: &mut Context<Self>) { info!("websocket server finished"); }
 }
 
-impl Handler<Result<Connection, Error>> for Server {
-    type Result = ();
-
+impl StreamHandler<Connection, Error> for Server {
     /// Handle an incoming connection and create a session.
-    fn handle(&mut self, conn: Result<Connection, Error>, _: &mut Context<Self>) {
-        // This runs on its own thread so we can just wait on the future from accepting the
-        // connection upgrade.
-        let conn = match conn {
-            Ok(c) => c,
-            Err(e) => {
-                error!("invalid websocket connection: error='{:?}'", e);
-                return;
-            },
-        };
-
+    fn handle(&mut self, conn: Connection, _: &mut Context<Self>) {
         if let Ok((framed, _)) = conn.upgrade.accept().wait() {
             // Spawn a session actor from frame and ensure the session has access to the Bus.
             let bus = self.bus.clone();
             let session_id = self.rng.borrow_mut().gen::<usize>();
             let addr = conn.addr;
-            let _: () = Session::create_with(framed, move |_, framed| {
-                Session::new(addr.clone(), bus.clone(), session_id.clone(), framed)
+            let _: () = Session::create(move |ctx| {
+                let (reader, writer) = FramedReader::wrap(framed);
+                Session::add_stream(reader, ctx);
+
+                Session::new(addr.clone(), bus.clone(), session_id.clone(), writer)
             });
         } else {
             warn!("websocket connection upgrade failed");

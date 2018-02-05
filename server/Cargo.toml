@@ -27,7 +27,7 @@ websocket = "0.20.2"
 
 [dependencies.actix]
 git = "https://github.com/actix/actix.git"
-rev = "ad82c51"
+rev = "136fd07"
 
 [dependencies.couchbase]
 git = "https://github.com/couchbaselabs/couchbase-rs.git"

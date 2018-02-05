@@ -1,10 +1,17 @@
 use std::net::SocketAddr;
 
-use actix::{Actor, Address, AsyncContext, Context, FramedActor, FramedCell};
+use actix::{
+    Actor,
+    Address,
+    AsyncContext,
+    Context,
+    FramedError,
+    FramedWriter,
+    StreamHandler
+};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
 use vicarius_common::websocket_message_contents;
-use websocket::WebSocketError;
 use websocket::async::TcpStream;
 use websocket::codec::ws::MessageCodec;
 use websocket::message::OwnedMessage;
@@ -17,14 +24,14 @@ use signals;
 pub struct Session {
     pub addr: SocketAddr,
     bus: Address<Bus>,
-    pub framed: FramedCell<TcpStream, MessageCodec<OwnedMessage>>,
+    pub framed: FramedWriter<TcpStream, MessageCodec<OwnedMessage>>,
     session_id: usize,
 }
 
 impl Session {
     /// Create a Session from a socket address and a bus actor.
     pub fn new(addr: SocketAddr, bus: Address<Bus>, session_id: usize,
-               framed: FramedCell<TcpStream, MessageCodec<OwnedMessage>>) -> Self {
+               framed: FramedWriter<TcpStream, MessageCodec<OwnedMessage>>) -> Self {
         Self {
             addr,
             bus,
@@ -123,19 +130,8 @@ impl Actor for Session {
     }
 }
 
-impl FramedActor<TcpStream, MessageCodec<OwnedMessage>> for Session {
-
-    fn handle(&mut self, message: Result<OwnedMessage, WebSocketError>,
-              ctx: &mut Context<Self>) {
-        info!("received message on websockets: client='{}'", self.addr);
-        let message = match message {
-            Ok(m) => m,
-            Err(e) => {
-                error!("error on session: error='{:?}'", e);
-                return;
-            },
-        };
-
+impl StreamHandler<OwnedMessage, FramedError<MessageCodec<OwnedMessage>>> for Session {
+    fn handle(&mut self, message: OwnedMessage, ctx: &mut Context<Self>) {
         if let Err(e) = self.process_message(message, ctx) {
             match &e.downcast::<ErrorKind>() {
                 &Ok(ErrorKind::InvalidWebsocketMessageType) => {

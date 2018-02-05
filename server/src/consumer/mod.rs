@@ -2,7 +2,7 @@ mod stream;
 
 use std::str::from_utf8;
 
-use actix::{Actor, Address, AsyncContext, Context, Handler, ResponseType};
+use actix::{Actor, Address, Context, ResponseType, StreamHandler};
 use failure::{Error, ResultExt};
 use futures::stream::Stream;
 use rdkafka::Message;
@@ -50,7 +50,7 @@ impl Consumer {
         consumer.subscribe(&[topic]).context(ErrorKind::KafkaConsumerSubscription)?;
 
         let _: () = Self::create(move |ctx| {
-            ctx.add_stream(consumer.start()
+            Self::add_stream(consumer.start()
                 .filter_map(|result| {
                     match result {
                         Ok(m) => Some(m),
@@ -63,7 +63,7 @@ impl Consumer {
                     KafkaMessage(msg)
                 }).map_err(|_| {
                     Error::from(ErrorKind::KafkaErrorReceived)
-                }));
+                }), ctx);
 
             Self { bus: bus }
         });
@@ -116,19 +116,9 @@ impl Actor for Consumer {
     fn stopped(&mut self, _ctx: &mut Context<Self>) { info!("consumer listener finished"); }
 }
 
-impl Handler<Result<KafkaMessage, Error>> for Consumer {
-    type Result = ();
-
+impl StreamHandler<KafkaMessage, Error> for Consumer {
     /// Handle an incoming message from Kafka.
-    fn handle(&mut self, message: Result<KafkaMessage, Error>, _ctx: &mut Context<Self>) {
-        let message = match message {
-            Ok(m) => m,
-            Err(e) => {
-                error!("invalid kafka message: error='{:?}'", e);
-                return;
-            },
-        };
-
+    fn handle(&mut self, message: KafkaMessage, _ctx: &mut Context<Self>) {
         if let Err(e) = self.process_message(message) {
             error!("processing message from kafka: error='{}'", e);
         }
