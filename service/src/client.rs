@@ -1,9 +1,19 @@
 use std::process::exit;
 
-use actix::{Actor, Arbiter, AsyncContext, Context, FramedActor, FramedCell, SyncAddress};
+use actix::{
+    Actor,
+    Arbiter,
+    AsyncContext,
+    Context,
+    FramedError,
+    FramedReader,
+    FramedWriter,
+    StreamHandler,
+    SyncAddress
+};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
-use websocket::{ClientBuilder, WebSocketError};
+use websocket::ClientBuilder;
 use websocket::async::TcpStream;
 use websocket::async::futures::{self, Future};
 use websocket::codec::ws::MessageCodec;
@@ -16,7 +26,7 @@ use signals::{Event, Link, Receipt, Registration};
 
 pub struct Client {
     pub interpreter: SyncAddress<Interpreter>,
-    pub framed: Option<FramedCell<Client>>,
+    pub framed: FramedWriter<TcpStream, MessageCodec<OwnedMessage>>,
 }
 
 impl Client {
@@ -28,15 +38,13 @@ impl Client {
                 .async_connect_insecure(Arbiter::handle())
                 .and_then(|(framed, _)| {
                     let _: () = Client::create(|ctx| {
-                        let mut client = Client {
+                        let (reader, writer) = FramedReader::wrap(framed);
+                        Client::add_stream(reader, ctx);
+
+                        Client {
                             interpreter: interpreter,
-                            framed: None,
-                        };
-
-                        let cell = client.add_framed(framed, ctx);
-                        client.framed = Some(cell);
-
-                        client
+                            framed: writer,
+                        }
                     });
 
                     futures::future::ok(())
@@ -58,7 +66,12 @@ impl Actor for Client {
         self.interpreter.send(Link { client: ctx.address() });
     }
 
-    fn stopped(&mut self, _ctx: &mut Self::Context) { info!("websocket client finished"); }
+    fn stopping(&mut self, _: &mut Self::Context) -> bool {
+        info!("websocket client stopping");
+        true
+    }
+
+    fn stopped(&mut self, _: &mut Self::Context) { info!("websocket client finished"); }
 }
 
 impl Client {
@@ -103,21 +116,9 @@ impl Client {
     }
 }
 
-impl FramedActor for Client {
-    type Io = TcpStream;
-    type Codec = MessageCodec<OwnedMessage>;
-
-    fn handle(&mut self, message: Result<OwnedMessage, WebSocketError>,
-              _ctx: &mut Context<Self>) {
+impl StreamHandler<OwnedMessage, FramedError<MessageCodec<OwnedMessage>>> for Client {
+    fn handle(&mut self, message: OwnedMessage, _ctx: &mut Context<Self>) {
         info!("received message on websockets");
-        let message = match message {
-            Ok(m) => m,
-            Err(e) => {
-                error!("incoming client message: error='{:?}'", e);
-                return;
-            },
-        };
-
         if let Err(e) = self.process_message(message) {
             match &e.downcast::<ErrorKind>() {
                 &Ok(ErrorKind::InvalidWebsocketMessageType) => {

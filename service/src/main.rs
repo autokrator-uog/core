@@ -6,6 +6,7 @@ extern crate http;
 #[macro_use] extern crate log;
 extern crate serde;
 extern crate serde_json;
+extern crate rand;
 extern crate redis;
 extern crate rlua;
 extern crate vicarius_common;
@@ -19,7 +20,7 @@ mod web;
 
 use std::process::exit;
 
-use actix::{Arbiter, SyncAddress, System};
+use actix::{SyncAddress, System};
 use clap::{Arg, ArgMatches, App};
 use failure::Error;
 use log::LogLevelFilter;
@@ -87,15 +88,13 @@ fn start_client(arguments: ArgMatches) -> Result<(), Error> {
         ErrorKind::MissingLuaScriptArgument)?.to_owned();
 
     info!("starting websocket client: server='{}'", server_address);
-    let interpreter: SyncAddress<_> = Arbiter::start(|_| {
-        match Interpreter::new(script_path, redis_address) {
-            Ok(interpreter) => interpreter,
-            Err(e) => {
-                error!("failed to create interpreter: error='{:?}'", e);
-                exit(1);
-            },
-        }
-    });
+    let interpreter: SyncAddress<_> = match Interpreter::launch(script_path, redis_address) {
+        Ok(interpreter) => interpreter,
+        Err(e) => {
+            error!("failed to create interpreter: error='{:?}'", e);
+            exit(1);
+        },
+    };
 
     // Start the webserver, it needs the address of the interpreter.
     start_webserver(bind_address, interpreter.clone())?;

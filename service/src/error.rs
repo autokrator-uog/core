@@ -26,8 +26,6 @@ pub enum ErrorKind {
 
     #[fail(display = "Client has not linked to interpreter")]
     ClientNotLinkedToInterpreter,
-    #[fail(display = "Client does not have a framed cell. This is a bug")]
-    ClientWithoutFramed,
 
     #[fail(display = "Missing websocket server argument. This is a bug, should be a default")]
     MissingWebsocketServerArgument,
@@ -40,6 +38,13 @@ pub enum ErrorKind {
 
     #[fail(display = "Failed to create Redis client")]
     RedisClientCreate,
+    #[fail(display = "Failed to persist key/value to Redis")]
+    RedisPersist,
+    #[fail(display = "Failed to query key in Redis")]
+    RedisQuery,
+
+    #[fail(display = "Could not find Bus userdata in Lua globals")]
+    MissingBusUserData,
 
     #[fail(display = "Could not find a file at the provided Lua script path")]
     LuaScriptNotFound,
@@ -48,29 +53,6 @@ pub enum ErrorKind {
     #[fail(display = "Could not evaluate Lua script")]
     EvaluateLuaScript,
 
-    #[fail(display = "Unable to create register function")]
-    CreateRegisterFunction,
-    #[fail(display = "Could not inject register function into Lua globals")]
-    InjectRegisterFunction,
-
-    #[fail(display = "Unable to create send function")]
-    CreateSendFunction,
-    #[fail(display = "Could not inject send function into Lua globals")]
-    InjectSendFunction,
-
-    #[fail(display = "Unable to create query function")]
-    CreateQueryFunction,
-    #[fail(display = "Could not inject query function into Lua globals")]
-    InjectQueryFunction,
-    #[fail(display = "Unable to create persist function")]
-    CreatePersistFunction,
-    #[fail(display = "Could not inject persist function into Lua globals")]
-    InjectPersistFunction,
-
-    #[fail(display = "Event types were not found in Lua register, was register function invoked?")]
-    MissingEventTypesRegistryValue,
-    #[fail(display = "Client type was not found in Lua register, was register function invoked?")]
-    MissingClientTypeRegistryValue,
     #[fail(display = "Event handler not found in Lua register, was register function invoked?")]
     MissingEventHandlerRegistryValue,
     #[fail(display = "HTTP handler not found in Lua register, was register function invoked?")]
@@ -82,27 +64,6 @@ pub enum ErrorKind {
     FailedHttpHandler,
     #[fail(display = "Failure when parsing result from HTTP handler")]
     ParseHttpHandlerResult,
-
-    #[fail(display = "Unable to create trace function")]
-    CreateTraceFunction,
-    #[fail(display = "Could not inject trace function into Lua globals")]
-    InjectTraceFunction,
-    #[fail(display = "Unable to create debug function")]
-    CreateDebugFunction,
-    #[fail(display = "Could not inject debug function into Lua globals")]
-    InjectDebugFunction,
-    #[fail(display = "Unable to create info function")]
-    CreateInfoFunction,
-    #[fail(display = "Could not inject info function into Lua globals")]
-    InjectInfoFunction,
-    #[fail(display = "Unable to create warn function")]
-    CreateWarnFunction,
-    #[fail(display = "Could not inject warn function into Lua globals")]
-    InjectWarnFunction,
-    #[fail(display = "Unable to create error function")]
-    CreateErrorFunction,
-    #[fail(display = "Could not inject error function into Lua globals")]
-    InjectErrorFunction,
 
     #[fail(display = "Failed to serialize value to json for sending")]
     SerializeJsonForSending,

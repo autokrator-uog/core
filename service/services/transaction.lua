@@ -1,6 +1,25 @@
-function new_event(event)
-    info("received event in lua")
-    send([[{
+bus:register("transaction")
+
+bus:add_event_listener("pendingtransaction", function(event)
+    bus:debug(event)
+end)
+
+bus:add_event_listener("deposit", function(event)
+    bus:debug(event)
+end)
+
+bus:add_event_listener("withdrawal", function(event)
+    bus:debug(event)
+end)
+
+bus:add_receipt_listener("pendingtransaction", function(event)
+    bus:debug(event)
+end)
+
+bus:add_route("/", "POST", function(data)
+    bus:debug(data)
+    bus:send([[
+    {
         "message_type": "new",
         "events": [
             {
@@ -15,23 +34,9 @@ function new_event(event)
                 }
             }
         ]
-    }]])
-end
+    }
+    ]])
+end)
 
-function http(method, uri, event)
-    info("http handler called")
-    debug(method)
-    debug(uri)
-    return [[{ "orange": "green" }]]
-end
-
-function receipt()
-end
-
-register("transaction", {"deposit", "withdrawal"}, new_event, receipt, http)
-
-local test = "blue"
-persist("orange", test)
-info("persisted value")
-local another = query("orange")
-debug(another)
+bus:persist("orange", [[ { "blue": "green" } ]])
+bus:debug(bus:query("orange"))

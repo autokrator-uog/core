@@ -1,9 +1,10 @@
 use actix::{Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use rlua::Function;
+use serde_json::{Value, from_str};
 
 use error::ErrorKind;
-use interpreter::{LUA_EVENT_HANDLER_REGISTRY_KEY, Interpreter};
+use interpreter::{Bus, Interpreter};
 
 /// The `Event` signal is sent from the client to the interpreter when a new event is received from
 /// the event bus.
@@ -18,12 +19,23 @@ impl ResponseType for Event {
 
 impl Interpreter {
     fn handle_event(&mut self, event: Event) -> Result<(), Error> {
-        let func: Function = self.lua.named_registry_value(LUA_EVENT_HANDLER_REGISTRY_KEY).context(
-            ErrorKind::MissingEventHandlerRegistryValue)?;
+        let parsed: Value = from_str(&event.message)?;
+        let event_type: String = String::from(parsed["event_type"].as_str().unwrap());
 
-        debug!("calling event handler");
-        func.call::<_, ()>(event.message).context(
-            ErrorKind::FailedEventHandler).map_err(Error::from)
+        let globals = self.lua.globals();
+        let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
+
+        match bus.event_handlers.get(&event_type) {
+            Some(key) => {
+                let function: Function = self.lua.named_registry_value(key).context(
+                    ErrorKind::MissingEventHandlerRegistryValue)?;
+
+                debug!("calling event handler");
+                function.call::<_, ()>(event.message).context(
+                    ErrorKind::FailedEventHandler).map_err(Error::from)
+            },
+            None => return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue)),
+        }
     }
 }
 

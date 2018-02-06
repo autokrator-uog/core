@@ -6,13 +6,14 @@ use websocket::OwnedMessage;
 
 use client::Client;
 use error::ErrorKind;
+use interpreter::Interpreter;
 
 /// The `SendMessage` signal is sent from the interpreter to the client when a new message needs to
 /// be sent to the event bus.
-pub struct SendMessage<T: Serialize + Send>(pub T);
+pub struct SendMessage<T: 'static + Serialize + Send>(pub T);
 
-impl<T: Send> ResponseType for SendMessage<T>
-    where T: Serialize
+impl<T> ResponseType for SendMessage<T>
+    where T: Serialize + Send
 {
     type Item = ();
     type Error = ();
@@ -26,15 +27,13 @@ impl Client {
             ErrorKind::SerializeJsonForSending)?;
 
         info!("sending message: message=\n{}", pretty_serialized);
-        match self.framed {
-            Some(ref mut framed) => Ok(framed.send(OwnedMessage::Text(serialized))),
-            None => return Err(Error::from(ErrorKind::ClientWithoutFramed)),
-        }
+        self.framed.send(OwnedMessage::Text(serialized));
+        Ok(())
     }
 }
 
-impl<T: Send> Handler<SendMessage<T>> for Client
-    where T: Serialize
+impl<T> Handler<SendMessage<T>> for Client
+    where T: Serialize + Send
 {
     type Result = ();
 
@@ -42,6 +41,22 @@ impl<T: Send> Handler<SendMessage<T>> for Client
         info!("received send message signal from interpreter");
         if let Err(e) = self.send_message(message.0) {
             error!("unable to send to message on websockets: error='{}'", e);
+        }
+    }
+}
+
+impl<T> Handler<SendMessage<T>> for Interpreter
+    where T: Serialize + Send
+{
+    type Result = ();
+
+    fn handle(&mut self, message: SendMessage<T>, _: &mut Context<Self>) {
+        info!("received send message signal at interpreter");
+        if let Some(ref client) = self.client {
+            warn!("forwarding signal to client");
+            client.send(message);
+        } else {
+            warn!("attempt to send message without client");
         }
     }
 }

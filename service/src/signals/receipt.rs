@@ -1,4 +1,5 @@
 use actix::{Context, Handler, ResponseType};
+use failure::Error;
 
 use interpreter::Interpreter;
 
@@ -13,10 +14,20 @@ impl ResponseType for Receipt {
     type Error = ();
 }
 
+impl Interpreter {
+    fn handle_receipt(&mut self, _receipt: Receipt) -> Result<(), Error> {
+        error!("not yet implemented");
+        Ok(())
+    }
+}
+
 impl Handler<Receipt> for Interpreter {
     type Result = ();
 
-    fn handle(&mut self, _message: Receipt, _: &mut Context<Self>) {
+    fn handle(&mut self, receipt: Receipt, _: &mut Context<Self>) {
         info!("received receipt signal from client");
+        if let Err(e) = self.handle_receipt(receipt) {
+            error!("processing receipt: error='{}'", e);
+        }
     }
 }
