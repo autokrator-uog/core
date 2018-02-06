@@ -6,8 +6,7 @@ use actix::{Address, Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, to_string_pretty};
 use vicarius_common::VecDequeExt;
-use vicarius_common::schemas::incoming::RegisterMessage;
-use vicarius_common::schemas::outgoing::Registration;
+use vicarius_common::schemas::{Register as RegisterSchema, Registration};
 
 use bus::{Bus, RegisteredTypes};
 use error::ErrorKind;
@@ -29,7 +28,7 @@ impl ResponseType for Register {
 
 impl Bus {
     fn update_round_robin_state_from_registration(&mut self, socket: SocketAddr,
-                                                  parsed: RegisterMessage) -> Result<(), Error> {
+                                                  parsed: RegisterSchema) -> Result<(), Error> {
         info!("updating client type: client='{}' type='{}'", socket, parsed.client_type);
         match self.sessions.get_mut(&socket) {
             Some(details) => {
@@ -83,7 +82,7 @@ impl Bus {
     }
 
     fn update_sessions_from_registration(&mut self, socket: SocketAddr,
-                                         parsed: RegisterMessage) -> Result<(), Error> {
+                                         parsed: RegisterSchema) -> Result<(), Error> {
         match self.sessions.get_mut(&socket) {
             Some(details) => {
                 if parsed.event_types.len() == 1 && parsed.event_types[0] == "*" {
@@ -107,7 +106,7 @@ impl Bus {
     pub fn register(&mut self, message: Register) -> Result<(), Error> {
         let (addr, socket) = message.sender;
 
-        let parsed: RegisterMessage = from_str(&message.message).context(
+        let parsed: RegisterSchema = from_str(&message.message).context(
             ErrorKind::ParseNewEventMessage)?;
         info!("parsed register message: message=\n{}",
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
@@ -116,9 +115,9 @@ impl Bus {
         self.update_round_robin_state_from_registration(socket, parsed.clone())?;
 
         let response = Registration {
-            message_type: "registration".to_string(),
-            event_types: parsed.event_types.clone(),
             client_type: parsed.client_type.clone(),
+            event_types: parsed.event_types.clone(),
+            message_type: "registration".to_string(),
         };
 
         info!("sending receipt to the client");

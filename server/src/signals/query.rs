@@ -4,8 +4,7 @@ use couchbase::{N1qlResult};
 use failure::{Error, Fail, ResultExt};
 use futures::{Stream};
 use serde_json::{from_str, to_string_pretty};
-use vicarius_common::schemas;
-use vicarius_common::schemas::kafka::EventMessage;
+use vicarius_common::schemas::{Query as QuerySchema, Event};
 
 use bus::Bus;
 use error::ErrorKind;
@@ -26,27 +25,29 @@ impl ResponseType for Query {
 
 #[derive(Deserialize)]
 pub struct CouchbaseStoredEvent {
-    pub events: EventMessage
+    pub events: Event
 }
 
 impl Bus {
     pub fn process_query_message(&mut self, message: Query) -> Result<(), Error> {
         // parse the JSON message
-        let parsed: schemas::incoming::QueryMessage = from_str(&message.message)
-                .context(ErrorKind::ParseNewEventMessage)?;
+        let parsed: QuerySchema = from_str(&message.message).context(
+            ErrorKind::ParseQueryMessage)?;
 
         debug!("parsed query event message: message=\n{}",
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
 
         // serialize event types into a sensible string
         let event_types: Vec<String> = parsed.event_types.iter()
-                    .map(|et| { "\"".to_string() + &et + "\"" })
-                    .collect();
-        let mut query = format!("SELECT * FROM events WHERE event_type IN [{}]", event_types.join(", "));
+            .map(|et| { "\"".to_string() + &et + "\"" })
+            .collect();
+        let mut query = format!("SELECT * FROM events WHERE event_type IN [{}]",
+                                event_types.join(", "));
 
         // allow an ALL option
         if parsed.since.to_uppercase() != "*" {
-            let begin_datetime = DateTime::parse_from_rfc3339(&parsed.since).context(ErrorKind::ParseQueryMessage)?;
+            let begin_datetime = DateTime::parse_from_rfc3339(&parsed.since).context(
+                ErrorKind::ParseQueryMessage)?;
             query = format!("{} AND timestamp_raw > {}", query, begin_datetime.timestamp());
         }
 
@@ -57,7 +58,6 @@ impl Bus {
 
         for row in result_iter {
             match row {
-                Err(e) => return Err(Error::from(e.context(ErrorKind::CouchbaseFailedGetQueryResult))),
                 Ok(N1qlResult::Meta(meta)) => {
                     // we don't really care about this, just spit it out for debug
                     debug!("raw meta received: meta='{:?}'", meta)
@@ -65,11 +65,14 @@ impl Bus {
                 Ok(N1qlResult::Row(row)) => {
                     debug!("raw row received: row='{}'", &row.as_ref());
 
-                    let parsed_row: CouchbaseStoredEvent = from_str(&row.as_ref()).context(ErrorKind::CouchbaseDeserialize)?;
+                    let parsed_row: CouchbaseStoredEvent = from_str(&row.as_ref()).context(
+                        ErrorKind::CouchbaseDeserialize)?;
                     let event = parsed_row.events;
 
                     client_session.send(SendToClient(event));
                 },
+                Err(e) => return Err(Error::from(e.context(
+                            ErrorKind::CouchbaseFailedGetQueryResult))),
             }
         }
 

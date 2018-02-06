@@ -5,7 +5,7 @@ use actix::{Context, Handler, ResponseType};
 use failure::{Error, ResultExt};
 use serde::Serialize;
 use serde_json::to_string;
-use vicarius_common::schemas::outgoing::Consistency;
+use vicarius_common::schemas::HasConsistency;
 
 use bus::{Bus, SessionDetails, RegisteredTypes};
 use error::ErrorKind;
@@ -15,10 +15,10 @@ use signals::SendToClient;
 /// to all appropriate clients. This should not be used for sending receipts, registrations or
 /// any one-off message to clients - it is intended for use of the sticky round robin system for
 /// distributing events.
-pub struct PropagateEvent<T: Consistency + Serialize + Send + Clone>(pub T, pub String);
+pub struct PropagateEvent<T: HasConsistency + Serialize + Send + Clone>(pub T, pub String);
 
 impl<T: Send> ResponseType for PropagateEvent<T>
-    where T: Consistency + Serialize + Clone
+    where T: HasConsistency + Serialize + Clone
 {
     type Item = ();
     type Error = ();
@@ -48,7 +48,7 @@ impl Bus {
 
     fn next_client_for_sending<T>(&mut self, event: T,
                                   client_type: &String) -> Result<(SocketAddr, SessionDetails), Error>
-        where T: Consistency + Serialize + Send + Clone + 'static
+        where T: HasConsistency + Serialize + Send + Clone + 'static
     {
         let sticky_key = (client_type.clone(), event.consistency_key());
         let socket = if let Some(socket) = self.sticky_consistency.get(&sticky_key) {
@@ -86,7 +86,7 @@ impl Bus {
     }
 
     pub fn propagate_event<T>(&mut self, event: T, event_type: String)
-        where T: Consistency + Serialize + Send + Clone + 'static
+        where T: HasConsistency + Serialize + Send + Clone + 'static
     {
         let types = self.round_robin_state.keys().cloned().collect::<Vec<_>>();
         debug!("checking client types: client_types='{:?}'", types);
@@ -117,7 +117,7 @@ impl Bus {
 }
 
 impl<T> Handler<PropagateEvent<T>> for Bus
-    where T: Consistency + Serialize + Send + Clone + 'static
+    where T: HasConsistency + Serialize + Send + Clone + 'static
 {
     type Result = ();
 

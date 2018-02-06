@@ -7,7 +7,7 @@ use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
-use vicarius_common::schemas::common::{SequenceKey, SequenceValue};
+use vicarius_common::schemas::{ConsistencyKey, ConsistencyValue};
 
 use error::ErrorKind;
 use persistence::connect_to_bucket;
@@ -64,11 +64,11 @@ pub struct Bus {
     pub round_robin_state: HashMap<String, VecDeque<SocketAddr>>,
     /// This field contains a mapping from each sequence key to the `SocketAddr` of the client
     /// that handles the events for that key. It is checked before the round robin state.
-    pub sticky_consistency: HashMap<(String, SequenceKey), SocketAddr>,
+    pub sticky_consistency: HashMap<(String, ConsistencyKey), SocketAddr>,
     /// This field contains the topic that events should be sent to in Kafka.
     pub topic: String,
     /// This field contains the mapping of the sequence key to the last seen sequence value.
-    pub consistency: HashMap<SequenceKey, SequenceValue>,
+    pub consistency: HashMap<ConsistencyKey, ConsistencyValue>,
     /// This field contains the producer that will be used when sending messages to Kafka.
     pub producer: FutureProducer<EmptyContext>,
     /// This field contains the couchbase bucket that will be used when persisting events to

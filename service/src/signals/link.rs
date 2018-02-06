@@ -5,7 +5,7 @@ use std::process::exit;
 use actix::{AsyncContext, Context, Handler, SyncAddress, ResponseType};
 use failure::{Error, ResultExt};
 use rlua::Table;
-use vicarius_common::schemas::incoming::RegisterMessage;
+use vicarius_common::schemas::Register;
 
 use client::Client;
 use error::ErrorKind;
@@ -76,10 +76,10 @@ impl Interpreter {
 
         info!("sending register message to server: event_types='{:?}' client_type='{}'",
               event_types, client_type);
-        client.send(SendMessage(RegisterMessage {
-            message_type: "register".to_owned(),
+        client.send(SendMessage(Register {
+            client_type,
             event_types,
-            client_type
+            message_type: "register".to_owned(),
         }));
         Ok(())
     }

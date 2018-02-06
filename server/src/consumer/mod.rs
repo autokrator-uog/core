@@ -10,7 +10,7 @@ use rdkafka::config::ClientConfig;
 use rdkafka::consumer::Consumer as ConsumerTrait;
 use rdkafka::message::OwnedMessage;
 use serde_json::{from_str, to_string_pretty};
-use vicarius_common::schemas;
+use vicarius_common::schemas::Event;
 
 use bus::Bus;
 use consumer::stream::StreamConsumer;
@@ -75,20 +75,14 @@ impl Consumer {
         debug!("starting processing message from kafka");
         let contents = self.get_message_contents(message)?;
 
-        let parsed: schemas::kafka::EventMessage = from_str(&contents).context(
-            ErrorKind::ParseJsonFromKafka)?;
+        let parsed: Event = from_str(&contents).context(ErrorKind::ParseJsonFromKafka)?;
         debug!("parsed message from kafka");
         info!("received message on kafka: message=\n{}",
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
 
-        let message = schemas::outgoing::EventMessage {
-            message_type: "event".to_owned(),
-            event_type: parsed.event_type.clone(),
-            timestamp: parsed.timestamp,
-            sender: parsed.sender,
-            data: parsed.data,
-            correlation_id: parsed.correlation_id,
-            consistency: parsed.consistency,
+        let message = Event {
+            message_type: Some("event".to_owned()),
+            ..parsed.clone()
         };
 
         self.bus.send(signals::PropagateEvent(message, parsed.event_type));

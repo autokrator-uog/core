@@ -8,9 +8,14 @@ use futures::Future;
 use serde::Serialize;
 use serde_json::{from_str, to_string, to_string_pretty};
 use sha1::Sha1;
-use vicarius_common::schemas;
-use vicarius_common::schemas::incoming::ConsistencyValue;
-use vicarius_common::schemas::common::Consistency;
+use vicarius_common::schemas::{
+    Consistency,
+    ConsistencyValue,
+    Event,
+    NewEvents,
+    Receipt,
+    Receipts,
+};
 
 use bus::Bus;
 use error::ErrorKind;
@@ -31,7 +36,8 @@ impl ResponseType for NewEvent {
 }
 
 impl Bus {
-    fn send_to_kafka<T: Serialize>(&mut self, event: &T, event_type: &String) -> Result<(), Error> {
+    fn send_to_kafka<T: Serialize>(&mut self, event: &T,
+                                   event_type: &String) -> Result<(), Error> {
         let serialized = to_string(event).context(
             ErrorKind::SerializeJsonForSending)?;
         let pretty_serialized = to_string_pretty(event).context(
@@ -44,13 +50,15 @@ impl Bus {
         Ok(())
     }
 
-    fn persist_to_couchbase<T: Serialize>(&mut self, event: &T, document_id: &str) -> Result<(), Error> {
+    fn persist_to_couchbase<T: Serialize>(&mut self, event: &T,
+                                          document_id: &str) -> Result<(), Error> {
         let serialized = to_string(event).context(
             ErrorKind::SerializeJsonForSending)?;
         let pretty_serialized = to_string_pretty(event).context(
             ErrorKind::SerializeJsonForSending)?;
 
-        let document = BinaryDocument::create(document_id, None, Some(serialized.as_bytes().to_owned()), None);
+        let document = BinaryDocument::create(document_id, None,
+                                              Some(serialized.as_bytes().to_owned()), None);
 
         info!("saving event in couchbase: event=\n{}", pretty_serialized);
         self.couchbase_bucket.upsert(document).wait()?;
@@ -71,57 +79,60 @@ impl Bus {
 
         let now_time = Local::now();
 
-        let mut receipt = schemas::outgoing::ReceiptMessage {
+        let mut receipt = Receipts {
             receipts: Vec::new(),
             message_type: "receipt".to_string(),
             timestamp: now_time.to_rfc2822(),
             sender: format!("{:?}", addr.clone()),
         };
 
-        let parsed: schemas::incoming::NewEventMessage = from_str(&message.message).context(
+        let parsed: NewEvents = from_str(&message.message).context(
             ErrorKind::ParseNewEventMessage)?;
         info!("parsed new event message: message=\n{}",
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
 
         for raw_event in parsed.events.iter() {
             let key = raw_event.consistency.key.clone();
+
             let value = match raw_event.consistency.value.clone() {
                 ConsistencyValue::Explicit(v) => v,
                 ConsistencyValue::Implicit => {
-                    if let Some(x) = self.consistency.get(&key) {
-                        *x + 1
+                    if let Some(&ConsistencyValue::Explicit(x)) = self.consistency.get(&key) {
+                        x + 1
                     } else {
                         0
                     }
                 },
             };
-            let consistency = Consistency {key: key, value: value};
+            let value = ConsistencyValue::Explicit(value);
 
-            let event = schemas::kafka::EventMessage {
+            let consistency = Consistency { key: key, value: value.clone() };
+            let event = Event {
+                consistency: consistency,
+                correlation_id: raw_event.correlation_id,
+                data: raw_event.data.clone(),
+                event_type: raw_event.event_type.clone(),
+                message_type: None,
                 timestamp: now_time.to_rfc2822(),
                 // Store the timestamp in raw form too - easier to query.
-                timestamp_raw: now_time.timestamp(),
+                timestamp_raw: Some(now_time.timestamp()),
                 sender: receipt.sender.clone(),
-                event_type: raw_event.event_type.clone(),
-                data: raw_event.data.clone(),
-                correlation_id: raw_event.correlation_id,
-                session_id: message.session_id,
-                consistency: consistency,
+                session_id: Some(message.session_id),
             };
 
             let key = raw_event.consistency.key.clone();
-            let success = if let Some(x) = self.consistency.get(&key) {
-                value == (x + 1)
+            let success = if let Some(&ConsistencyValue::Explicit(x)) = self.consistency.get(&key) {
+                value == ConsistencyValue::Explicit(x + 1)
             } else {
-                value == 0
+                value == ConsistencyValue::Explicit(0)
             };
 
             let mut status = "inconsistent";
             if success {
-                self.consistency.insert(key, value);
+                self.consistency.insert(key, value.clone());
                 status = "success";
 
-                info!("sending event to kafka: sequence_key='{}', sequence_value={}",
+                info!("sending event to kafka: sequence_key='{}', sequence_value='{}'",
                       raw_event.consistency.key.clone(), value);
                 self.send_to_kafka(&event, &event.event_type)?;
 
@@ -132,7 +143,7 @@ impl Bus {
                 self.persist_to_couchbase(&event, &hash_all.to_string())?;
             }
 
-            receipt.receipts.push(schemas::outgoing::Receipt {
+            receipt.receipts.push(Receipt {
                 // We just care about verifying the integrity of the data,
                 // so the hash need only be done on this.
                 checksum: self.hash(&event.data.clone())?,
