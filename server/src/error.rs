@@ -48,8 +48,6 @@ pub enum ErrorKind {
     #[fail(display = "No message type in JSON from websockets")]
     NoMessageTypeFromWebsockets,
 
-    #[fail(display = "Failed to serialize value to json for hashing")]
-    SerializeJsonForHashing,
     #[fail(display = "Failed to serialize value to json for sending")]
     SerializeJsonForSending,
 

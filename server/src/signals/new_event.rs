@@ -2,6 +2,7 @@ use std::net::SocketAddr;
 
 use actix::{Address, Context, Handler, ResponseType};
 use chrono::Local;
+use common::hash_json;
 use common::schemas::{
     Consistency,
     ConsistencyValue,
@@ -15,7 +16,6 @@ use failure::{Error, ResultExt};
 use futures::Future;
 use serde::Serialize;
 use serde_json::{from_str, to_string, to_string_pretty};
-use sha1::Sha1;
 
 use bus::Bus;
 use error::ErrorKind;
@@ -64,14 +64,6 @@ impl Bus {
         self.couchbase_bucket.upsert(document).wait()?;
 
         Ok(())
-    }
-
-    fn hash<T: Serialize>(&mut self, input: &T) -> Result<String, Error> {
-        let json = to_string(input).context(ErrorKind::SerializeJsonForHashing)?;
-
-        let mut hasher = Sha1::new();
-        hasher.update(json.as_bytes());
-        Ok(hasher.digest().to_string())
     }
 
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
@@ -138,7 +130,7 @@ impl Bus {
 
                 // Do a separate hash to include timestamp, sender etc to make the hash always
                 // unique.
-                let hash_all = self.hash(&event.clone())?;
+                let hash_all = hash_json(&event.clone())?;
                 info!("sending event to couchbase");
                 self.persist_to_couchbase(&event, &hash_all.to_string())?;
             }
@@ -146,7 +138,7 @@ impl Bus {
             receipt.receipts.push(Receipt {
                 // We just care about verifying the integrity of the data,
                 // so the hash need only be done on this.
-                checksum: self.hash(&event.data.clone())?,
+                checksum: hash_json(&event.data.clone())?,
                 status: status.to_string()
             });
         }

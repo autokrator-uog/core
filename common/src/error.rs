@@ -13,6 +13,8 @@ pub struct Error {
 /// the kind of error. These variants should not carry data.
 #[derive(Copy, Clone, Eq, PartialEq, Debug, Fail)]
 pub enum ErrorKind {
+    #[fail(display = "Failed to serialize value to json for hashing")]
+    SerializeJsonForHashing,
     #[fail(display = "Invalid consistency value type recieved in incoming event message")]
     ParseConsistencyValue,
     #[fail(display = "Attempt to get value of implicit consistency value")]

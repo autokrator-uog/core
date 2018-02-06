@@ -1,6 +1,7 @@
 use std::collections::hash_map::Entry;
 
 use actix::{Context, Handler, ResponseType};
+use common::hash_json;
 use common::schemas::{
     Consistency,
     ConsistencyKey,
@@ -73,14 +74,20 @@ impl Interpreter {
         let event = NewEventSchema {
             consistency: consistency,
             correlation_id: correlation_id,
-            data: data,
+            data: data.clone(),
             event_type: event_type,
         };
 
         let message = NewEvents {
-            events: vec![ event ],
+            events: vec![ event.clone() ],
             message_type: "new".to_owned(),
         };
+
+        if let Some(_) = self.receipt_lookup.insert(hash_json(&data)?, event) {
+            info!("replaced event in receipt lookup - hash collision?");
+        } else {
+            info!("added event to receipt lookup");
+        }
 
         if let Some(ref client) = self.client {
             debug!("sending send message signal");

@@ -9,7 +9,7 @@ use std::io::Read;
 use std::ops::Deref;
 
 use actix::{Actor, Context, SyncAddress};
-use common::schemas::{ConsistencyKey, ConsistencyValue};
+use common::schemas::{ConsistencyKey, ConsistencyValue, NewEvent};
 use failure::{Error, ResultExt};
 use rand::{self, ThreadRng};
 use redis::Client as RedisClient;
@@ -24,6 +24,7 @@ pub struct Interpreter {
     pub client: Option<SyncAddress<Client>>,
     pub consistency: HashMap<ConsistencyKey, ConsistencyValue>,
     pub lua: Lua,
+    pub receipt_lookup: HashMap<String, NewEvent>,
     pub redis: RedisClient,
     pub rng: RefCell<ThreadRng>,
     pub script: String,
@@ -42,6 +43,7 @@ impl Interpreter {
             client: None,
             consistency: HashMap::new(),
             lua: Lua::new(),
+            receipt_lookup: HashMap::new(),
             redis: redis,
             rng: RefCell::new(rand::thread_rng()),
             script: contents,

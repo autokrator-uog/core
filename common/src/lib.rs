@@ -6,6 +6,7 @@ extern crate fern;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
+extern crate sha1;
 extern crate websocket;
 
 mod error;
@@ -15,5 +16,5 @@ mod logging;
 pub mod schemas;
 
 pub use extensions::VecDequeExt;
-pub use helpers::websocket_message_contents;
+pub use helpers::{hash_json, websocket_message_contents};
 pub use logging::configure_logging;

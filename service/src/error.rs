@@ -53,13 +53,17 @@ pub enum ErrorKind {
     #[fail(display = "Could not evaluate Lua script")]
     EvaluateLuaScript,
 
-    #[fail(display = "Event handler not found in Lua register, was register function invoked?")]
+    #[fail(display = "Event handler not found in Lua register")]
     MissingEventHandlerRegistryValue,
-    #[fail(display = "HTTP handler not found in Lua register, was register function invoked?")]
+    #[fail(display = "Receipt handler not found in Lua register")]
+    MissingReceiptHandlerRegistryValue,
+    #[fail(display = "HTTP handler not found in Lua register")]
     MissingHttpHandlerRegistryValue,
 
     #[fail(display = "Failure when running event handler")]
     FailedEventHandler,
+    #[fail(display = "Failure when running receipt handler")]
+    FailedReceiptHandler,
     #[fail(display = "Failure when running HTTP handler")]
     FailedHttpHandler,
     #[fail(display = "Failure when parsing result from HTTP handler")]
@@ -97,6 +101,8 @@ pub enum ErrorKind {
 
     #[fail(display = "Failed to parse incoming event JSON")]
     ParseEventMessage,
+    #[fail(display = "Failed to parse incoming receipt JSON")]
+    ParseReceiptMessage,
 }
 
 impl Error {
