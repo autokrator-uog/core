@@ -67,6 +67,28 @@ pub enum ErrorKind {
 
     #[fail(display = "Failed to serialize value to json for sending")]
     SerializeJsonForSending,
+
+    #[fail(display = "Failed to deserialize json for Lua conversion")]
+    DeserializeJsonForLua,
+    #[fail(display = "Failed to serialize json to Lua conversion")]
+    SerializeJsonForLua,
+    #[fail(display = "Failed to set temporary global variable for Lua to json conversion")]
+    SetLuaToJsonTemporary,
+    #[fail(display = "Failed to remove temporary global variable for Lua to json conversion")]
+    RemoveLuaToJsonTemporary,
+    #[fail(display = "Failed to evaLuate Lua for Lua to json conversion")]
+    EvaluateLuaToJsonConversion,
+    #[fail(display = "Failed to evaLuate Lua for json to Lua conversion")]
+    EvaluateJsonToLuaConversion,
+    #[fail(display = "Failed to convert nil value in Lua")]
+    NilToLuaConversion,
+
+    #[fail(display = "Failed to convert Lua string into Rust string")]
+    LuaToStringStrConversion,
+    #[fail(display = "Failed to serialize json into Lua for Lua to string conversion")]
+    SerializeJsonForLuaToString,
+    #[fail(display = "Unable to log Lua value of this type")]
+    UnsupportedLoggingType,
 }
 
 impl Error {

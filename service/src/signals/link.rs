@@ -1,7 +1,10 @@
+use std::fs::File;
+use std::io::Read;
 use std::process::exit;
 
 use actix::{AsyncContext, Context, Handler, SyncAddress, ResponseType};
 use failure::{Error, ResultExt};
+use rlua::Table;
 use vicarius_common::schemas::incoming::RegisterMessage;
 
 use client::Client;
@@ -21,13 +24,30 @@ impl ResponseType for Link {
 }
 
 impl Interpreter {
+    fn load_library(&mut self, name: &str, file_path: &str) -> Result<(), Error> {
+        let mut file = File::open(&file_path).context(ErrorKind::LuaScriptNotFound)?;
+        let mut contents = String::new();
+        file.read_to_string(&mut contents).context(ErrorKind::ReadLuaScript)?;
+
+        let globals = self.lua.globals();
+        info!("evaluating lua script: path='{}'", file_path);
+        let script_result: Table = self.lua.exec(&contents, Some(name)).context(
+            ErrorKind::EvaluateLuaScript)?;
+        info!("setting global: name='{}'", name);
+        globals.set(name, script_result)?;
+        Ok(())
+    }
+
     fn link_client(&mut self, client: SyncAddress<Client>,
                    ctx: &mut Context<Self>) -> Result<(), Error> {
         // Set the client field on the interpreter.
         self.client = Some(client.clone());
 
-        let redis = self.redis.clone();
+        // Load JSON library.
+        self.load_library("json", "./vendor/json.lua")?;
+
         {
+            let redis = self.redis.clone();
             debug!("injecting bus userdata");
             let globals = self.lua.globals();
             globals.set("bus", Bus::new(ctx.address(), redis))?;

@@ -38,5 +38,6 @@ bus:add_route("/", "POST", function(data)
     ]])
 end)
 
-bus:persist("orange", [[ { "blue": "green" } ]])
+local value = { blue = "green", orange = { "yellow", "blue" } }
+bus:persist("orange", value)
 bus:debug(bus:query("orange"))

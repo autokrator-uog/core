@@ -1,16 +1,17 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use actix::{Arbiter, SyncAddress};
-use failure::{Error, ResultExt};
+use failure::ResultExt;
 use rand::{Rng, thread_rng};
 use redis::{Client as RedisClient, Commands};
-use rlua::{Error as LuaError, Function, ToLua, UserData, UserDataMethods};
+use rlua::{Function, Table, UserData, UserDataMethods, Value as LuaValue};
 use serde_json::{Value, from_str, to_string, to_string_pretty};
 use websocket::async::futures;
 
 use error::ErrorKind;
 use interpreter::Interpreter;
+use interpreter::extensions::{ToLuaError, ToLuaErrorResult};
+use interpreter::helpers::{json_to_lua, lua_to_json, lua_to_string};
 use signals::SendMessage;
 
 #[derive(Clone)]
@@ -113,16 +114,18 @@ impl UserData for Bus {
             Ok(())
         });
 
-        methods.add_method("persist", |_, this, (key, value): (String, String)| {
+        methods.add_method("persist", |lua, this, (key, value): (String, Table)| {
             debug!("received persist call from lua");
-            let serialized = to_string(&value).unwrap();
-            let pretty_serialized = to_string_pretty(&value).unwrap();
+            let as_json: Value = lua_to_json(lua, value).to_lua_error()?;
+
+            let serialized = to_string(&as_json).unwrap();
+            let pretty_serialized = to_string_pretty(&as_json).unwrap();
 
             info!("persisting to redis: key='{}' value=\n{}", key, pretty_serialized);
             match this.redis.set::<String, String, String>(
                 key, serialized).context(ErrorKind::RedisPersist) {
                     Ok(_) => Ok(()),
-                    Err(e) => Err(LuaError::ExternalError(Arc::new(Error::from(e)))),
+                    Err(e) => Err(e.to_lua_error()),
             }
         });
 
@@ -131,33 +134,36 @@ impl UserData for Bus {
 
             info!("querying redis: key='{}'", key);
             match this.redis.get::<_, String>(key).context(ErrorKind::RedisQuery) {
-                Ok(value) => Ok(value.to_lua(lua)),
-                Err(e) => Err(LuaError::ExternalError(Arc::new(Error::from(e)))),
+                Ok(value) => {
+                    let parsed: Value = from_str(&value).to_lua_error()?;
+                    Ok(json_to_lua(lua, parsed).to_lua_error()?)
+                },
+                Err(e) => Err(e.to_lua_error()),
             }
         });
 
-        methods.add_method("trace", |_, _, message: String| {
-            trace!("from lua: message='{}'", message);
+        methods.add_method("trace", |lua, _, message: LuaValue| {
+            trace!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
             Ok(())
         });
 
-        methods.add_method("debug", |_, _, message: String| {
-            debug!("from lua: message='{}'", message);
+        methods.add_method("debug", |lua, _, message: LuaValue| {
+            debug!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
             Ok(())
         });
 
-        methods.add_method("info", |_, _, message: String| {
-            info!("from lua: message='{}'", message);
+        methods.add_method("info", |lua, _, message: LuaValue| {
+            info!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
             Ok(())
         });
 
-        methods.add_method("warn", |_, _, message: String| {
-            warn!("from lua: message='{}'", message);
+        methods.add_method("warn", |lua, _, message: LuaValue| {
+            warn!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
             Ok(())
         });
 
-        methods.add_method("error", |_, _, message: String| {
-            error!("from lua: message='{}'", message);
+        methods.add_method("error", |lua, _, message: LuaValue| {
+            error!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
             Ok(())
         });
 
