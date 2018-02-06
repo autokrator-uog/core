@@ -2,12 +2,16 @@ mod extensions;
 mod functions;
 mod helpers;
 
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Read;
 use std::ops::Deref;
 
 use actix::{Actor, Context, SyncAddress};
+use common::schemas::{ConsistencyKey, ConsistencyValue};
 use failure::{Error, ResultExt};
+use rand::{self, ThreadRng};
 use redis::Client as RedisClient;
 use rlua::Lua;
 
@@ -16,9 +20,11 @@ use error::ErrorKind;
 pub use interpreter::functions::Bus;
 
 pub struct Interpreter {
-    pub redis: RedisClient,
     pub client: Option<SyncAddress<Client>>,
+    pub consistency: HashMap<ConsistencyKey, ConsistencyValue>,
     pub lua: Lua,
+    pub redis: RedisClient,
+    pub rng: RefCell<ThreadRng>,
     pub script: String,
 }
 
@@ -32,10 +38,12 @@ impl Interpreter {
             ErrorKind::RedisClientCreate)?;
 
         let interpreter = Self {
-            lua: Lua::new(),
             client: None,
-            script: contents,
+            consistency: HashMap::new(),
+            lua: Lua::new(),
             redis: redis,
+            rng: RefCell::new(rand::thread_rng()),
+            script: contents,
         };
 
         Ok(interpreter.start())

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use actix::{Arbiter, SyncAddress};
-use failure::ResultExt;
+use failure::{Error, ResultExt};
 use rand::{Rng, thread_rng};
 use redis::{Client as RedisClient, Commands};
 use rlua::{Function, Table, UserData, UserDataMethods, Value as LuaValue};
@@ -12,7 +12,7 @@ use error::ErrorKind;
 use interpreter::Interpreter;
 use interpreter::extensions::{ToLuaError, ToLuaErrorResult};
 use interpreter::helpers::{json_to_lua, lua_to_json, lua_to_string};
-use signals::SendMessage;
+use signals::NewEvent;
 
 #[derive(Clone)]
 pub struct Bus {
@@ -98,18 +98,33 @@ impl UserData for Bus {
             Ok(())
         });
 
-        methods.add_method("send", |_, this, value: String| {
+        methods.add_method("send", |lua, this,
+                           (event_type, consistency_key, implicit, correlation_id, data):
+                           (String, String, bool, LuaValue, Table)| {
             debug!("received send call from lua");
-            let parsed: Value = from_str(&value).unwrap();
-            let interpreter = this.interpreter.clone();
+            let data: Value = lua_to_json(lua, data).to_lua_error()?;
+
+            let correlation_id: Option<usize> = match correlation_id {
+                LuaValue::Nil => None,
+                LuaValue::Integer(v) => Some(v as usize),
+                _ => return Err(Error::from(ErrorKind::InvalidCorrelationIdType).to_lua_error()),
+            };
 
             // In order to use actor addresses, we must be running from an actor, else the program
             // will hang and everything breaks. To get around this, we can use the arbiter handle
             // to send the signal.
+            let interpreter = this.interpreter.clone();
             Arbiter::handle().spawn_fn(move || {
-                interpreter.send(SendMessage(parsed));
+                interpreter.send(NewEvent {
+                    event_type,
+                    consistency_key,
+                    data,
+                    implicit,
+                    correlation_id,
+                });
                 futures::future::ok(())
             });
+
             debug!("finished send call from lua");
             Ok(())
         });

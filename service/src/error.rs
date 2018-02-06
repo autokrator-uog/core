@@ -89,6 +89,11 @@ pub enum ErrorKind {
     SerializeJsonForLuaToString,
     #[fail(display = "Unable to log Lua value of this type")]
     UnsupportedLoggingType,
+
+    #[fail(display = "Invalid type passed as correlation id")]
+    InvalidCorrelationIdType,
+    #[fail(display = "Found implicit consistency in state. This is a bug and should not happen")]
+    ImplicitConsistencyInMap,
 }
 
 impl Error {

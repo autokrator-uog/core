@@ -18,26 +18,5 @@ end)
 
 bus:add_route("/", "POST", function(data)
     bus:debug(data)
-    bus:send([[
-    {
-        "message_type": "new",
-        "events": [
-            {
-                "consistency": {
-                    "key": "acc-234",
-                    "value": 0
-                },
-                "correlation_id": 28374938,
-                "event_type": "deposit",
-                "data": {
-                    "blue": "green"
-                }
-            }
-        ]
-    }
-    ]])
+    bus:send("deposit", "acc-234", false, nil, { blue = "green" })
 end)
-
-local value = { blue = "green", orange = { "yellow", "blue" } }
-bus:persist("orange", value)
-bus:debug(bus:query("orange"))
