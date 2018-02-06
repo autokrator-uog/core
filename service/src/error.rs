@@ -94,6 +94,9 @@ pub enum ErrorKind {
     InvalidCorrelationIdType,
     #[fail(display = "Found implicit consistency in state. This is a bug and should not happen")]
     ImplicitConsistencyInMap,
+
+    #[fail(display = "Failed to parse incoming event JSON")]
+    ParseEventMessage,
 }
 
 impl Error {
