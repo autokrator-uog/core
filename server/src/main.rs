@@ -1,6 +1,7 @@
 extern crate actix;
 extern crate chrono;
 #[macro_use] extern crate clap;
+extern crate common;
 extern crate couchbase;
 #[macro_use] extern crate failure;
 extern crate futures;
@@ -11,7 +12,6 @@ extern crate serde;
 extern crate serde_json;
 #[macro_use] extern crate serde_derive;
 extern crate sha1;
-extern crate vicarius_common;
 extern crate websocket;
 
 mod bus;
@@ -24,9 +24,9 @@ mod signals;
 
 use actix::{Address, System};
 use clap::{Arg, ArgMatches, App, AppSettings, SubCommand};
+use common::configure_logging;
 use failure::Error;
 use log::LogLevelFilter;
-use vicarius_common::configure_logging;
 
 use bus::Bus;
 use consumer::Consumer;

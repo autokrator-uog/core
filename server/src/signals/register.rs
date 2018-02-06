@@ -3,10 +3,10 @@ use std::collections::hash_map::Entry;
 use std::net::SocketAddr;
 
 use actix::{Address, Context, Handler, ResponseType};
+use common::VecDequeExt;
+use common::schemas::{Register as RegisterSchema, Registration};
 use failure::{Error, ResultExt};
 use serde_json::{from_str, to_string_pretty};
-use vicarius_common::VecDequeExt;
-use vicarius_common::schemas::{Register as RegisterSchema, Registration};
 
 use bus::{Bus, RegisteredTypes};
 use error::ErrorKind;

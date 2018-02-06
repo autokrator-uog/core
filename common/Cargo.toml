@@ -1,5 +1,5 @@
 [package]
-name = "vicarius_common"
+name = "common"
 version = "0.1.0"
 authors = [
         "Connor Jardine <connorjardine97@gmail.com>",

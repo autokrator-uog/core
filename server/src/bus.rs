@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
+use common::schemas::{ConsistencyKey, ConsistencyValue};
 use couchbase::{Bucket};
 use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
-use vicarius_common::schemas::{ConsistencyKey, ConsistencyValue};
 
 use error::ErrorKind;
 use persistence::connect_to_bucket;

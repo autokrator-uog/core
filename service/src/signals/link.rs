@@ -3,9 +3,9 @@ use std::io::Read;
 use std::process::exit;
 
 use actix::{AsyncContext, Context, Handler, SyncAddress, ResponseType};
+use common::schemas::Register;
 use failure::{Error, ResultExt};
 use rlua::Table;
-use vicarius_common::schemas::Register;
 
 use client::Client;
 use error::ErrorKind;

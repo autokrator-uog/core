@@ -9,9 +9,9 @@ use actix::{
     FramedWriter,
     StreamHandler
 };
+use common::websocket_message_contents;
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
-use vicarius_common::websocket_message_contents;
 use websocket::async::TcpStream;
 use websocket::codec::ws::MessageCodec;
 use websocket::message::OwnedMessage;

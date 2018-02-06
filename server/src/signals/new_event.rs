@@ -2,13 +2,7 @@ use std::net::SocketAddr;
 
 use actix::{Address, Context, Handler, ResponseType};
 use chrono::Local;
-use couchbase::{Document, BinaryDocument};
-use failure::{Error, ResultExt};
-use futures::Future;
-use serde::Serialize;
-use serde_json::{from_str, to_string, to_string_pretty};
-use sha1::Sha1;
-use vicarius_common::schemas::{
+use common::schemas::{
     Consistency,
     ConsistencyValue,
     Event,
@@ -16,6 +10,12 @@ use vicarius_common::schemas::{
     Receipt,
     Receipts,
 };
+use couchbase::{Document, BinaryDocument};
+use failure::{Error, ResultExt};
+use futures::Future;
+use serde::Serialize;
+use serde_json::{from_str, to_string, to_string_pretty};
+use sha1::Sha1;
 
 use bus::Bus;
 use error::ErrorKind;

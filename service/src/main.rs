@@ -1,6 +1,7 @@
 extern crate actix;
 extern crate actix_web;
 #[macro_use] extern crate clap;
+extern crate common;
 #[macro_use] extern crate failure;
 extern crate http;
 #[macro_use] extern crate log;
@@ -9,7 +10,6 @@ extern crate serde_json;
 extern crate rand;
 extern crate redis;
 extern crate rlua;
-extern crate vicarius_common;
 extern crate websocket;
 
 mod client;
@@ -22,9 +22,9 @@ use std::process::exit;
 
 use actix::{SyncAddress, System};
 use clap::{Arg, ArgMatches, App};
+use common::configure_logging;
 use failure::Error;
 use log::LogLevelFilter;
-use vicarius_common::configure_logging;
 
 use client::Client;
 use error::ErrorKind;

@@ -1,10 +1,10 @@
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
+use common::VecDequeExt;
+use common::schemas::Event;
 use failure::Error;
 use serde_json::{to_string_pretty, from_str};
-use vicarius_common::VecDequeExt;
-use vicarius_common::schemas::outgoing::EventMessage;
 
 use bus::Bus;
 use error::ErrorKind;
@@ -65,7 +65,7 @@ impl Bus {
         };
 
         for unawknowledged_event in unawknowledged_events.iter() {
-            let deserialized_event: EventMessage = from_str(unawknowledged_event)?;
+            let deserialized_event: Event = from_str(unawknowledged_event)?;
             debug!("re-propagating unawknowledged event: event=\n{}",
                    to_string_pretty(&deserialized_event)?);
             self.propagate_event(deserialized_event.clone(), deserialized_event.event_type);

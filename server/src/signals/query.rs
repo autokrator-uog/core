@@ -1,10 +1,10 @@
 use actix::{Address, Context, Handler, ResponseType};
 use chrono::DateTime;
+use common::schemas::{Query as QuerySchema, Event};
 use couchbase::{N1qlResult};
 use failure::{Error, Fail, ResultExt};
 use futures::{Stream};
 use serde_json::{from_str, to_string_pretty};
-use vicarius_common::schemas::{Query as QuerySchema, Event};
 
 use bus::Bus;
 use error::ErrorKind;

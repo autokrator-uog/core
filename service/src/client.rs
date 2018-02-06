@@ -11,6 +11,7 @@ use actix::{
     StreamHandler,
     SyncAddress
 };
+use common::websocket_message_contents;
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
 use websocket::ClientBuilder;
@@ -18,7 +19,6 @@ use websocket::async::TcpStream;
 use websocket::async::futures::{self, Future};
 use websocket::codec::ws::MessageCodec;
 use websocket::message::OwnedMessage;
-use vicarius_common::websocket_message_contents;
 
 use error::ErrorKind;
 use interpreter::Interpreter;

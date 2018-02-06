@@ -2,10 +2,10 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
+use common::schemas::HasConsistency;
 use failure::{Error, ResultExt};
 use serde::Serialize;
 use serde_json::to_string;
-use vicarius_common::schemas::HasConsistency;
 
 use bus::{Bus, SessionDetails, RegisteredTypes};
 use error::ErrorKind;

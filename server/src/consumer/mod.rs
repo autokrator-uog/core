@@ -3,6 +3,7 @@ mod stream;
 use std::str::from_utf8;
 
 use actix::{Actor, Address, Context, ResponseType, StreamHandler};
+use common::schemas::Event;
 use failure::{Error, ResultExt};
 use futures::stream::Stream;
 use rdkafka::Message;
@@ -10,7 +11,6 @@ use rdkafka::config::ClientConfig;
 use rdkafka::consumer::Consumer as ConsumerTrait;
 use rdkafka::message::OwnedMessage;
 use serde_json::{from_str, to_string_pretty};
-use vicarius_common::schemas::Event;
 
 use bus::Bus;
 use consumer::stream::StreamConsumer;
