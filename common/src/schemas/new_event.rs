@@ -11,7 +11,7 @@ pub struct NewEvents {
 #[derive(Serialize, Deserialize, Clone)]
 pub struct NewEvent {
     pub consistency: Consistency,
-    pub correlation_id: usize,
+    pub correlation_id: u32,
     pub data: Value,
     pub event_type: String,
 }

@@ -104,9 +104,9 @@ impl UserData for Bus {
             debug!("received send call from lua");
             let data: Value = lua_to_json(lua, data).to_lua_error()?;
 
-            let correlation_id: Option<usize> = match correlation_id {
+            let correlation_id: Option<u32> = match correlation_id {
                 LuaValue::Nil => None,
-                LuaValue::Integer(v) => Some(v as usize),
+                LuaValue::Integer(v) => Some(v as u32),
                 _ => return Err(Error::from(ErrorKind::InvalidCorrelationIdType).to_lua_error()),
             };
 

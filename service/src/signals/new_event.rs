@@ -23,7 +23,7 @@ pub struct NewEvent {
     pub data: Value,
     pub event_type: String,
     pub implicit: bool,
-    pub correlation_id: Option<usize>,
+    pub correlation_id: Option<u32>,
 }
 
 impl ResponseType for NewEvent {
@@ -34,11 +34,11 @@ impl ResponseType for NewEvent {
 impl Interpreter {
     pub fn send_new_event(&mut self, consistency_key: ConsistencyKey, data: Value,
                           event_type: String, implicit: bool,
-                          correlation_id: Option<usize>) -> Result<(), Error> {
+                          correlation_id: Option<u32>) -> Result<(), Error> {
         let correlation_id = if let Some(correlation_id) = correlation_id {
             correlation_id
         } else {
-            self.rng.borrow_mut().gen::<usize>()
+            self.rng.borrow_mut().gen::<u32>()
         };
 
         let consistency_value = if implicit {
