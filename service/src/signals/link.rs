@@ -1,5 +1,3 @@
-use std::fs::File;
-use std::io::Read;
 use std::process::exit;
 
 use actix::{AsyncContext, Context, Handler, SyncAddress, ResponseType};
@@ -11,6 +9,8 @@ use client::Client;
 use error::ErrorKind;
 use interpreter::{Bus, Interpreter, RedisInterface};
 use signals::SendMessage;
+
+static LUA_LIBRARY: &'static str = include_str!("../../vendor/json.lua");
 
 /// The `Link` signal is sent from the client to the interpreter when the client starts so that
 /// the register message can be sent.
@@ -24,15 +24,13 @@ impl ResponseType for Link {
 }
 
 impl Interpreter {
-    fn load_library(&mut self, name: &str, file_path: &str) -> Result<(), Error> {
-        let mut file = File::open(&file_path).context(ErrorKind::LuaScriptNotFound)?;
-        let mut contents = String::new();
-        file.read_to_string(&mut contents).context(ErrorKind::ReadLuaScript)?;
-
+    fn load_library(&mut self, name: &str, contents: &'static str) -> Result<(), Error> {
         let globals = self.lua.globals();
-        info!("evaluating lua script: path='{}'", file_path);
+
+        info!("evaluating lua library");
         let script_result: Table = self.lua.exec(&contents, Some(name)).context(
             ErrorKind::EvaluateLuaScript)?;
+
         info!("setting global: name='{}'", name);
         globals.set(name, script_result)?;
         Ok(())
@@ -44,7 +42,7 @@ impl Interpreter {
         self.client = Some(client.clone());
 
         // Load JSON library.
-        self.load_library("json", "./vendor/json.lua")?;
+        self.load_library("json", LUA_LIBRARY)?;
 
         {
             let redis = self.redis.clone();
