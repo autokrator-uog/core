@@ -3,7 +3,7 @@ use actix_web::{Error as WebError, HttpResponse, Method};
 use actix_web::httpcodes::{HTTPNotFound, HTTPOk};
 use failure::{Error, Fail, ResultExt};
 use http::uri::Uri;
-use rlua::{Function, Value as LuaValue};
+use rlua::{Function, ToLua, Value as LuaValue};
 use serde_json::{Value, to_string_pretty};
 
 use error::ErrorKind;
@@ -42,7 +42,7 @@ impl Interpreter {
     fn handle_request(&mut self, req: Request) -> Result<Response, Error> {
         let uri = format!("{}", req.uri);
         let method = String::from(req.method.as_str());
-        info!("handling request from http: uri='{:?}' method='{:?}' content=\n{}",
+        info!("handling request from http: uri='{}' method='{}' content=\n{}",
               uri, method, to_string_pretty(&req.content)?);
         let content = json_to_lua(&self.lua, req.content).context(
             ErrorKind::ParseHttpContent)?;
@@ -50,13 +50,22 @@ impl Interpreter {
         let globals = self.lua.globals();
         let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
 
-        match bus.http_handlers.get(&(uri.clone(), method.clone())) {
-            Some(key) => {
-                let function: Function = self.lua.named_registry_value(key).context(
+        match bus.http_router.match_route(&uri.clone(), &method.clone()) {
+            Some((key, matches)) => {
+                let function: Function = self.lua.named_registry_value(&key).context(
                     ErrorKind::MissingHttpHandlerRegistryValue)?;
 
+                let matches_table = match matches.to_lua(&self.lua).context(
+                        ErrorKind::MatchesToLua)? {
+                    LuaValue::Table(t) => t,
+                    _ => {
+                        error!("failed to convert pattern matches to lua table");
+                        return Err(Error::from(ErrorKind::MatchesToLua));
+                    },
+                };
+
                 debug!("calling http handler");
-                let args = (method, uri, content);
+                let args = (method, uri, matches_table, content);
                 let result = match function.call::<_, LuaValue>(args) {
                     Ok(r) => r,
                     Err(e) => {

@@ -15,7 +15,9 @@ bus:add_receipt_listener("deposit", function(event_type, consistency_key, correl
     bus:debug(data)
 end)
 
-bus:add_route("/", "POST", function(method, route, data)
+bus:add_route("/{name}/{id}", "POST", function(method, route, args, data)
+    bus:debug(args.name)
+    bus:debug(args.id)
     bus:debug(method)
     bus:debug(route)
     bus:debug(data)

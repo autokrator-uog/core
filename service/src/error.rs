@@ -105,6 +105,13 @@ pub enum ErrorKind {
     ParseEventMessage,
     #[fail(display = "Failed to parse incoming receipt JSON")]
     ParseReceiptMessage,
+
+    #[fail(display = "Failed to create regex set for router")]
+    RouterCreateRegexSet,
+    #[fail(display = "Failed converting pattern matches to Lua table")]
+    MatchesToLua,
+    #[fail(display = "Failed adding route to router")]
+    AddRoute,
 }
 
 impl Error {

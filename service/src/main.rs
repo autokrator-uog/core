@@ -9,6 +9,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate rand;
 extern crate redis;
+extern crate regex;
 extern crate rlua;
 extern crate websocket;
 

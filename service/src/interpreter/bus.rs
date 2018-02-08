@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::rc::Rc;
 
 use actix::{Arbiter, SyncAddress};
 use failure::Error;
@@ -11,6 +12,7 @@ use error::ErrorKind;
 use interpreter::Interpreter;
 use interpreter::extensions::{ToLuaError, ToLuaErrorResult};
 use interpreter::helpers::{lua_to_json, lua_to_string};
+use interpreter::router::Router;
 use signals::NewEvent;
 
 #[derive(Clone)]
@@ -22,7 +24,7 @@ pub struct Bus {
 
     pub event_handlers: HashMap<String, String>,
     pub receipt_handlers: HashMap<String, String>,
-    pub http_handlers: HashMap<(String, String), String>,
+    pub http_router: Rc<Router>,
 }
 
 impl Bus {
@@ -33,7 +35,7 @@ impl Bus {
             client_type: None,
             event_handlers: HashMap::new(),
             receipt_handlers: HashMap::new(),
-            http_handlers: HashMap::new(),
+            http_router: Rc::new(Router::new()),
         }
     }
 
@@ -87,10 +89,17 @@ impl UserData for Bus {
             let key = this.generate_key();
             lua.set_named_registry_value(&key, handler)?;
 
-            let args = (path.clone(), method.clone());
-            match this.http_handlers.insert(args, key) {
-                Some(_) => info!("old http handler replaced: path='{}' method='{}'", path, method),
-                None => info!("new http handler added: path='{}' method='{}'", path, method),
+            match Rc::get_mut(&mut this.http_router) {
+                Some(router) => {
+                    match router.add_route(path.clone(), method.clone(), key) {
+                        Ok(Some(_)) => info!("old http handler replaced: path='{}' method='{}'",
+                                             path, method),
+                        Ok(None) => info!("new http handler added: path='{}' method='{}'",
+                                          path, method),
+                        Err(e) => error!("failed to add route: error='{}'", e),
+                    }
+                },
+                None => error!("unable to mutably borrow http router"),
             }
             Ok(())
         });

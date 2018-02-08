@@ -2,6 +2,7 @@ mod bus;
 mod extensions;
 mod helpers;
 mod redis;
+mod router;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
