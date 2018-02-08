@@ -1,6 +1,6 @@
 use actix::{Context, Handler, ResponseType};
 use common::schemas::Event as EventSchema;
-use failure::{Error, ResultExt};
+use failure::{Error, Fail, ResultExt};
 use rlua::Function;
 use serde_json::from_str;
 
@@ -34,8 +34,12 @@ impl Interpreter {
                     ErrorKind::ParseEventMessage)?;
                 let args = (parsed.event_type, parsed.consistency.key, parsed.correlation_id,
                             data);
-                function.call::<_, ()>(args).context(
-                    ErrorKind::FailedEventHandler).map_err(Error::from)
+                if let Err(e) = function.call::<_, ()>(args) {
+                    error!("failure running event hander: \n\n{}\n", e);
+                    return Err(Error::from(e.context(ErrorKind::FailedEventHandler)));
+                } else {
+                    Ok(())
+                }
             },
             None => return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue)),
         }

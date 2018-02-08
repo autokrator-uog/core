@@ -1,6 +1,7 @@
+mod bus;
 mod extensions;
-mod functions;
 mod helpers;
+mod redis;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -17,8 +18,9 @@ use rlua::Lua;
 
 use client::Client;
 use error::ErrorKind;
-pub use interpreter::functions::Bus;
+pub use interpreter::bus::Bus;
 pub use interpreter::helpers::{json_to_lua, lua_to_json};
+pub use interpreter::redis::RedisInterface;
 
 pub struct Interpreter {
     pub client: Option<SyncAddress<Client>>,

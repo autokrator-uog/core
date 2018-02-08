@@ -43,9 +43,8 @@ impl Interpreter {
                         ErrorKind::ParseReceiptMessage)?;
                     let args = (event.event_type, event.consistency.key, event.correlation_id,
                                 data);
-                    if let Err(e) = function.call::<_, ()>(args).context(
-                            ErrorKind::FailedReceiptHandler).map_err(Error::from) {
-                        error!("running receipt handler: error='{}'", e);
+                    if let Err(e) = function.call::<_, ()>(args) {
+                        error!("failure running receipt handler: \n\n{}\n", e);
                     }
                     debug!("finished receipt handler");
                 },

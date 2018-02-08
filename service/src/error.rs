@@ -62,12 +62,14 @@ pub enum ErrorKind {
 
     #[fail(display = "Failure when running event handler")]
     FailedEventHandler,
-    #[fail(display = "Failure when running receipt handler")]
-    FailedReceiptHandler,
     #[fail(display = "Failure when running HTTP handler")]
     FailedHttpHandler,
+    #[fail(display = "Invalid return type from HTTP handler")]
+    HttpHandlerInvalidReturnType,
     #[fail(display = "Failure when parsing result from HTTP handler")]
     ParseHttpHandlerResult,
+    #[fail(display = "Failure when parsing content from HTTP request")]
+    ParseHttpContent,
 
     #[fail(display = "Failed to serialize value to json for sending")]
     SerializeJsonForSending,

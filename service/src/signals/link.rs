@@ -9,7 +9,7 @@ use rlua::Table;
 
 use client::Client;
 use error::ErrorKind;
-use interpreter::{Bus, Interpreter};
+use interpreter::{Bus, Interpreter, RedisInterface};
 use signals::SendMessage;
 
 /// The `Link` signal is sent from the client to the interpreter when the client starts so that
@@ -50,7 +50,8 @@ impl Interpreter {
             let redis = self.redis.clone();
             debug!("injecting bus userdata");
             let globals = self.lua.globals();
-            globals.set("bus", Bus::new(ctx.address(), redis))?;
+            globals.set("bus", Bus::new(ctx.address()))?;
+            globals.set("redis", RedisInterface::new(redis))?;
         }
 
         // For our script to not error, we need to ensure everything is injected before running

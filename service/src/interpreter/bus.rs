@@ -1,23 +1,21 @@
 use std::collections::HashMap;
 
 use actix::{Arbiter, SyncAddress};
-use failure::{Error, ResultExt};
+use failure::Error;
 use rand::{Rng, thread_rng};
-use redis::{Client as RedisClient, Commands};
 use rlua::{Function, Table, UserData, UserDataMethods, Value as LuaValue};
-use serde_json::{Value, from_str, to_string, to_string_pretty};
+use serde_json::Value;
 use websocket::async::futures;
 
 use error::ErrorKind;
 use interpreter::Interpreter;
 use interpreter::extensions::{ToLuaError, ToLuaErrorResult};
-use interpreter::helpers::{json_to_lua, lua_to_json, lua_to_string};
+use interpreter::helpers::{lua_to_json, lua_to_string};
 use signals::NewEvent;
 
 #[derive(Clone)]
 pub struct Bus {
     pub interpreter: SyncAddress<Interpreter>,
-    pub redis: RedisClient,
 
     pub event_types: Vec<String>,
     pub client_type: Option<String>,
@@ -28,10 +26,9 @@ pub struct Bus {
 }
 
 impl Bus {
-    pub fn new(address: SyncAddress<Interpreter>, redis: RedisClient) -> Self {
-        Bus {
+    pub fn new(address: SyncAddress<Interpreter>) -> Self {
+        Self {
             interpreter: address,
-            redis: redis,
             event_types: Vec::new(),
             client_type: None,
             event_handlers: HashMap::new(),
@@ -127,34 +124,6 @@ impl UserData for Bus {
 
             debug!("finished send call from lua");
             Ok(())
-        });
-
-        methods.add_method("persist", |lua, this, (key, value): (String, Table)| {
-            debug!("received persist call from lua");
-            let as_json: Value = lua_to_json(lua, value).to_lua_error()?;
-
-            let serialized = to_string(&as_json).unwrap();
-            let pretty_serialized = to_string_pretty(&as_json).unwrap();
-
-            info!("persisting to redis: key='{}' value=\n{}", key, pretty_serialized);
-            match this.redis.set::<String, String, String>(
-                key, serialized).context(ErrorKind::RedisPersist) {
-                    Ok(_) => Ok(()),
-                    Err(e) => Err(e.to_lua_error()),
-            }
-        });
-
-        methods.add_method("query", |lua, this, key: String| {
-            debug!("received query call from lua");
-
-            info!("querying redis: key='{}'", key);
-            match this.redis.get::<_, String>(key).context(ErrorKind::RedisQuery) {
-                Ok(value) => {
-                    let parsed: Value = from_str(&value).to_lua_error()?;
-                    Ok(json_to_lua(lua, parsed).to_lua_error()?)
-                },
-                Err(e) => Err(e.to_lua_error()),
-            }
         });
 
         methods.add_method("trace", |lua, _, message: LuaValue| {

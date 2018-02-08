@@ -1,8 +1,8 @@
 use actix::SyncAddress;
 use actix_web::{Application, AsyncResponder, Error as ActixWebError, HttpRequest, HttpResponse, HttpServer};
-use actix_web::httpcodes::{HTTPOk, HTTPInternalServerError};
+use actix_web::httpcodes::HTTPInternalServerError;
 use failure::{Error, ResultExt};
-use serde_json::{Value, to_string_pretty};
+use serde_json::Value;
 use websocket::async::futures::Future;
 
 use error::ErrorKind;
@@ -29,10 +29,10 @@ fn handle(req: HttpRequest<State>) -> Box<Future<Item=HttpResponse, Error=ActixW
            };
 
            match interpreter.call_fut(request).wait() {
-               Ok(Ok(value)) => {
-                   debug!("responding to http request: content=\n{}",
-                          to_string_pretty(&value)?);
-                   Ok(HTTPOk.build().json(value)?)
+               Ok(Ok(response)) => Ok(response.to_http_response()?),
+               Err(e) => {
+                   error!("failure in request signal: error='{}'", e);
+                   Ok(HTTPInternalServerError.into())
                },
                _ => Ok(HTTPInternalServerError.into()),
            }
