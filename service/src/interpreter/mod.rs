@@ -1,6 +1,7 @@
 mod bus;
 mod extensions;
 mod helpers;
+mod logger;
 mod redis;
 mod router;
 
@@ -21,6 +22,7 @@ use client::Client;
 use error::ErrorKind;
 pub use interpreter::bus::Bus;
 pub use interpreter::helpers::{json_to_lua, lua_to_json};
+pub use interpreter::logger::Logger;
 pub use interpreter::redis::RedisInterface;
 
 pub struct Interpreter {

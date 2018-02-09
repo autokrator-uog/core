@@ -11,7 +11,7 @@ use websocket::async::futures;
 use error::ErrorKind;
 use interpreter::Interpreter;
 use interpreter::extensions::{ToLuaError, ToLuaErrorResult};
-use interpreter::helpers::{lua_to_json, lua_to_string};
+use interpreter::helpers::lua_to_json;
 use interpreter::router::Router;
 use signals::NewEvent;
 
@@ -135,30 +135,6 @@ impl UserData for Bus {
             Ok(())
         });
 
-        methods.add_method("trace", |lua, _, message: LuaValue| {
-            trace!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
-            Ok(())
-        });
-
-        methods.add_method("debug", |lua, _, message: LuaValue| {
-            debug!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
-            Ok(())
-        });
-
-        methods.add_method("info", |lua, _, message: LuaValue| {
-            info!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
-            Ok(())
-        });
-
-        methods.add_method("warn", |lua, _, message: LuaValue| {
-            warn!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
-            Ok(())
-        });
-
-        methods.add_method("error", |lua, _, message: LuaValue| {
-            error!("from lua: message='{}'", lua_to_string(lua, message).to_lua_error()?);
-            Ok(())
-        });
 
     }
 }

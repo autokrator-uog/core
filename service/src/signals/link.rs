@@ -7,7 +7,7 @@ use rlua::Table;
 
 use client::Client;
 use error::ErrorKind;
-use interpreter::{Bus, Interpreter, RedisInterface};
+use interpreter::{Bus, Interpreter, Logger, RedisInterface};
 use signals::SendMessage;
 
 static LUA_LIBRARY: &'static str = include_str!("../../vendor/json.lua");
@@ -49,6 +49,7 @@ impl Interpreter {
             debug!("injecting bus userdata");
             let globals = self.lua.globals();
             globals.set("bus", Bus::new(ctx.address()))?;
+            globals.set("log", Logger::new())?;
             globals.set("redis", RedisInterface::new(redis))?;
         }
 
