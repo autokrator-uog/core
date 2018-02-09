@@ -21,9 +21,6 @@ pub enum RegisteredTypes {
     Some(Vec<String>),
 }
 
-pub type SequenceKey = String;
-pub type SequenceValue = u32;
-
 /// SessionDetails contains all the information that relates to a given session that is
 /// connected.
 #[derive(Clone)]
@@ -36,7 +33,7 @@ pub struct SessionDetails {
     pub registered_types: RegisteredTypes,
     /// This field contains which consistency keys this session is handling through sticky
     /// round robin.
-    pub consistency_keys: HashSet<(String, SequenceKey)>,
+    pub consistency_keys: HashSet<(String, ConsistencyKey)>,
     /// This field contains the unawknowledged messages sent to this session that should be resent
     /// if this session disconnects and fails to awknowledge the finished processing of this event.
     ///
