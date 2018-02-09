@@ -1,3 +1,6 @@
+#![deny(warnings)]
+#![deny(missing_debug_implementations)]
+
 extern crate chrono;
 extern crate colored;
 #[macro_use] extern crate failure;

@@ -1,4 +1,4 @@
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Query {
     pub event_types: Vec<String>,
     pub since: String,

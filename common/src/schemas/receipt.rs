@@ -1,4 +1,4 @@
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Receipts {
     pub message_type: String,
     pub receipts: Vec<Receipt>,
@@ -6,7 +6,7 @@ pub struct Receipts {
     pub timestamp: String,
 }
 
-#[derive(Serialize, Deserialize, Hash, Clone)]
+#[derive(Clone, Debug, Hash, Serialize, Deserialize)]
 pub struct Receipt {
     pub checksum: String,
     pub status: String,

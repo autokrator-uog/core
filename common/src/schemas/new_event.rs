@@ -2,13 +2,13 @@ use serde_json::Value;
 
 use schemas::consistency::Consistency;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NewEvents {
     pub message_type: String,
     pub events: Vec<NewEvent>,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct NewEvent {
     pub consistency: Consistency,
     pub correlation_id: u32,

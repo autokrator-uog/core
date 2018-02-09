@@ -7,7 +7,7 @@ use schemas::consistency::{
     HasConsistency
 };
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Event {
     pub consistency: Consistency,
     pub correlation_id: u32,
