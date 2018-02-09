@@ -42,6 +42,8 @@ pub enum ErrorKind {
     RedisPersist,
     #[fail(display = "Failed to query key in Redis")]
     RedisQuery,
+    #[fail(display = "Failed to find matching keys in Redis")]
+    RedisKeys,
 
     #[fail(display = "Could not find Bus userdata in Lua globals")]
     MissingBusUserData,

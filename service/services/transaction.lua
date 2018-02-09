@@ -10,6 +10,7 @@ end)
 bus:add_receipt_listener("deposit", function(status, event_type, consistency_key, correlation_id,
                                              data)
     log:debug(redis:get("test"))
+    log:debug(redis:keys("t*"))
     log:debug(status)
     log:debug(event_type)
     log:debug(consistency_key)

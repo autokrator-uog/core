@@ -47,5 +47,19 @@ impl UserData for RedisInterface {
                 Err(e) => Err(e.to_lua_error()),
             }
         });
+
+        methods.add_method("keys", |lua, this, key: String| {
+            debug!("received keys call from lua");
+
+            info!("querying redis for keys: key='{}'", key);
+            match this.redis.keys::<_, Vec<String>>(key).context(ErrorKind::RedisKeys) {
+                Ok(matching_keys) => {
+                    let as_string = to_string(&matching_keys).to_lua_error()?;
+                    let parsed: Value = from_str(&as_string).to_lua_error()?;
+                    Ok(json_to_lua(lua, parsed).to_lua_error()?)
+                },
+                Err(e) => Err(e.to_lua_error()),
+            }
+        });
     }
 }
