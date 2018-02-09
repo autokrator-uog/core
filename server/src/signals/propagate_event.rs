@@ -2,10 +2,8 @@ use std::clone::Clone;
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
-use common::schemas::HasConsistency;
-use failure::{Error, ResultExt};
-use serde::Serialize;
-use serde_json::to_string;
+use common::schemas::Event;
+use failure::Error;
 
 use bus::{Bus, SessionDetails, RegisteredTypes};
 use error::ErrorKind;
@@ -15,11 +13,11 @@ use signals::SendToClient;
 /// to all appropriate clients. This should not be used for sending receipts, registrations or
 /// any one-off message to clients - it is intended for use of the sticky round robin system for
 /// distributing events.
-pub struct PropagateEvent<T: HasConsistency + Serialize + Send + Clone>(pub T, pub String);
+pub struct PropagateEvent {
+    pub event: Event,
+}
 
-impl<T: Send> ResponseType for PropagateEvent<T>
-    where T: HasConsistency + Serialize + Clone
-{
+impl ResponseType for PropagateEvent {
     type Item = ();
     type Error = ();
 }
@@ -46,13 +44,12 @@ impl Bus {
         should_send
     }
 
-    fn next_client_for_sending<T>(&mut self, event: T,
-                                  client_type: &String) -> Result<(SocketAddr, SessionDetails), Error>
-        where T: HasConsistency + Serialize + Send + Clone + 'static
+    fn next_client_for_sending(&mut self, event: Event,
+                               client_type: &String) -> Result<(SocketAddr, SessionDetails), Error>
     {
-        let sticky_key = (client_type.clone(), event.consistency_key());
+        let sticky_key = (client_type.clone(), event.consistency.key.clone());
         let socket = if let Some(socket) = self.sticky_consistency.get(&sticky_key) {
-            debug!("found sticky client for: key='{}'", event.consistency_key());
+            debug!("found sticky client for: key='{}'", event.consistency.key);
             *socket
         } else {
             debug!("finding non-sticky client for: client_type='{}'", client_type);
@@ -76,8 +73,9 @@ impl Bus {
             details.consistency_keys.insert(sticky_key);
 
             // Keep track of this event as unawknowledged.
-            let serialized_event = to_string(&event).context(ErrorKind::ParseJsonFromKafka)?;
-            details.unawknowledged_events.insert(serialized_event);
+            let mut expected_ack_event = event.clone();
+            expected_ack_event.message_type = Some(String::from("ack"));
+            details.unawknowledged_events.insert(expected_ack_event);
 
             Ok((socket.clone(), details.clone()))
         } else {
@@ -85,9 +83,8 @@ impl Bus {
         }
     }
 
-    pub fn propagate_event<T>(&mut self, event: T, event_type: String)
-        where T: HasConsistency + Serialize + Send + Clone + 'static
-    {
+    pub fn propagate_event(&mut self, event: Event) {
+        let event_type = event.event_type.clone();
         let types = self.round_robin_state.keys().cloned().collect::<Vec<_>>();
         debug!("checking client types: client_types='{:?}'", types);
         for client_type in types {
@@ -116,13 +113,11 @@ impl Bus {
     }
 }
 
-impl<T> Handler<PropagateEvent<T>> for Bus
-    where T: HasConsistency + Serialize + Send + Clone + 'static
-{
+impl Handler<PropagateEvent> for Bus {
     type Result = ();
 
-    fn handle(&mut self, message: PropagateEvent<T>, _: &mut Context<Self>) {
+    fn handle(&mut self, message: PropagateEvent, _: &mut Context<Self>) {
         debug!("received propagate event signal");
-        self.propagate_event(message.0, message.1);
+        self.propagate_event(message.event);
     }
 }

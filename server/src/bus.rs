@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
-use common::schemas::{ConsistencyKey, ConsistencyValue};
+use common::schemas::{ConsistencyKey, ConsistencyValue, Event};
 use couchbase::{Bucket};
 use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
@@ -40,7 +40,7 @@ pub struct SessionDetails {
     /// We store the events as strings here since we are unable to implement `Hash` on the `Value`
     /// type from `serde_json`. This should not contain the `message_type` field and should not be
     /// pretty printed.
-    pub unawknowledged_events: HashSet<String>,
+    pub unawknowledged_events: HashSet<Event>,
 }
 
 /// Bus maintains the state that pertains to all clients and allows clients to send messages

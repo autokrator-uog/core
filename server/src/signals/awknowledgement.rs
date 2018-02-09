@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
-use failure::Error;
+use common::schemas::Event;
+use failure::{Error, ResultExt};
+use serde_json::from_str;
 
 use bus::Bus;
 use error::ErrorKind;
@@ -21,10 +23,11 @@ impl ResponseType for Awknowledgement {
 
 impl Bus {
     fn process_awknowledgement(&mut self, message: Awknowledgement) -> Result<(), Error> {
+        let parsed: Event = from_str(&message.message).context(ErrorKind::ParseAwknowledgement)?;
         match self.sessions.get_mut(&message.addr) {
             Some(details) => {
-                if details.unawknowledged_events.remove(&message.message) {
-                    warn!("successfully removed event from unawknowledged events: client='{}'",
+                if details.unawknowledged_events.remove(&parsed) {
+                    info!("successfully removed event from unawknowledged events: client='{}'",
                           message.addr);
                 } else {
                     warn!("attempt to remove unawknowledged event that does not exist");

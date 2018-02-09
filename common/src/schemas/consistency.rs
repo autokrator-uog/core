@@ -10,7 +10,7 @@ use error::ErrorKind;
 
 pub type ConsistencyKey = String;
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub enum ConsistencyValue {
     Implicit,
     Explicit(u32),
@@ -99,7 +99,7 @@ fn deserialize_consistency_value<'de, D>(deserializer: D) -> Result<ConsistencyV
     deserializer.deserialize_any(ConsistencyValueParser(PhantomData))
 }
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct Consistency {
     pub key: ConsistencyKey,
 
@@ -112,13 +112,6 @@ pub struct Consistency {
     #[serde(default, serialize_with="serialize_consistency_value",
             deserialize_with = "deserialize_consistency_value")]
     pub value: ConsistencyValue,
-}
-
-/// This trait is used to access the consistency information for any arbitary type that should
-/// be propagated to clients.
-pub trait HasConsistency {
-    fn consistency_key(&self) -> ConsistencyKey;
-    fn consistency_value(&self) -> ConsistencyValue;
 }
 
 mod tests {

@@ -10,7 +10,6 @@ pub use self::consistency::{
     Consistency,
     ConsistencyKey,
     ConsistencyValue,
-    HasConsistency,
 };
 pub use self::event::Event;
 pub use self::new_event::{NewEvent, NewEvents};

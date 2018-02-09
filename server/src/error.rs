@@ -56,6 +56,8 @@ pub enum ErrorKind {
 
     #[fail(display = "Invalid JSON received in new event message")]
     ParseNewEventMessage,
+    #[fail(display = "Invalid JSON received in awknowledgement message")]
+    ParseAwknowledgement,
 
     #[fail(display = "Invalid data received in query message")]
     ParseQueryMessage,

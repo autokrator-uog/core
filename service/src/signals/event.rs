@@ -6,6 +6,7 @@ use serde_json::from_str;
 
 use error::ErrorKind;
 use interpreter::{Bus, Interpreter, json_to_lua};
+use signals::SendMessage;
 
 /// The `Event` signal is sent from the client to the interpreter when a new event is received from
 /// the event bus.
@@ -21,6 +22,8 @@ impl ResponseType for Event {
 impl Interpreter {
     fn handle_event(&mut self, event: Event) -> Result<(), Error> {
         let parsed: EventSchema = from_str(&event.message).context(ErrorKind::ParseEventMessage)?;
+        // We'll send this if handler succeeds.
+        let mut awknowledgement = parsed.clone();
 
         let globals = self.lua.globals();
         let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
@@ -37,9 +40,18 @@ impl Interpreter {
                 if let Err(e) = function.call::<_, ()>(args) {
                     error!("failure running event hander: \n\n{}\n", e);
                     return Err(Error::from(e.context(ErrorKind::FailedEventHandler)));
-                } else {
-                    Ok(())
                 }
+
+                // Respond with an awknowledgement.
+                awknowledgement.message_type = Some(String::from("ack"));
+                if let Some(ref client) = self.client {
+                    info!("responding with awknowledgement");
+                    client.send(SendMessage(awknowledgement));
+                } else {
+                    return Err(Error::from(ErrorKind::ClientNotLinkedToInterpreter));
+                }
+
+                Ok(())
             },
             None => return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue)),
         }

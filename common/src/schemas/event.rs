@@ -1,13 +1,10 @@
+use std::hash::{Hash, Hasher};
+
 use serde_json::Value;
 
-use schemas::consistency::{
-    Consistency,
-    ConsistencyKey,
-    ConsistencyValue,
-    HasConsistency
-};
+use schemas::consistency::Consistency;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 pub struct Event {
     pub consistency: Consistency,
     pub correlation_id: u32,
@@ -21,7 +18,17 @@ pub struct Event {
     pub timestamp_raw: Option<i64>,
 }
 
-impl HasConsistency for Event {
-    fn consistency_key(&self) -> ConsistencyKey { self.consistency.key.clone() }
-    fn consistency_value(&self) -> ConsistencyValue { self.consistency.value.clone() }
+impl Eq for Event { }
+
+impl Hash for Event {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.consistency.hash(state);
+        self.correlation_id.hash(state);
+        self.event_type.hash(state);
+        self.message_type.hash(state);
+        self.sender.hash(state);
+        self.session_id.hash(state);
+        self.timestamp.hash(state);
+        self.timestamp_raw.hash(state);
+    }
 }

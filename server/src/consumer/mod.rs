@@ -85,7 +85,7 @@ impl Consumer {
             ..parsed.clone()
         };
 
-        self.bus.send(signals::PropagateEvent(message, parsed.event_type));
+        self.bus.send(signals::PropagateEvent { event: message });
         debug!("finished processing message from kafka");
         Ok(())
     }
