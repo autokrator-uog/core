@@ -41,8 +41,8 @@ impl Interpreter {
                     debug!("calling receipt handler");
                     let data = json_to_lua(&self.lua, event.data).context(
                         ErrorKind::ParseReceiptMessage)?;
-                    let args = (event.event_type, event.consistency.key, event.correlation_id,
-                                data);
+                    let args = (receipt.status, event.event_type, event.consistency.key,
+                                event.correlation_id, data);
                     if let Err(e) = function.call::<_, ()>(args) {
                         error!("failure running receipt handler: \n\n{}\n", e);
                     }
