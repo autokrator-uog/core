@@ -84,14 +84,9 @@ bus:add_receipt_listener("PendingTransaction", function(status, event_type, key,
         -- If this transaction was inconsistent (it shouldn't be, we use implicit consistency),
         -- then resend it.
         if status == "inconsistent" then
-            local event_data = {
-                fromAccountId = data.fromAccountId,
-                toAccountId = data.toAccountId,
-                amount = data.amount,
-            }
 
             -- Resend the event.
-            bus:send("PendingTransaction", key, true, nil, event_data)
+            bus:send("PendingTransaction", key, true, nil, data)
 
         -- If the transaction has not already been accepted/rejected then
         -- we update the status to 'pending'.
