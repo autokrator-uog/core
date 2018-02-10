@@ -2,7 +2,7 @@ use actix::{Context, Handler, ResponseType};
 use common::schemas::{NewEvent, Receipts};
 use failure::{Error, ResultExt};
 use rlua::Function;
-use serde_json::from_str;
+use serde_json::{from_str, to_string_pretty};
 
 use error::ErrorKind;
 use interpreter::{Bus, Interpreter, json_to_lua};
@@ -21,9 +21,13 @@ impl ResponseType for Receipt {
 impl Interpreter {
     fn handle_receipt(&mut self, receipt: Receipt) -> Result<(), Error> {
         let parsed: Receipts = from_str(&receipt.message).context(ErrorKind::ParseReceiptMessage)?;
+        debug!("received receipt: message=\n{}", to_string_pretty(&parsed)?);
 
-        let globals = self.lua.globals();
-        let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
+        let bus: Bus = {
+            let globals = self.lua.globals();
+            globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?
+        };
+
         for receipt in parsed.receipts {
             let event: NewEvent = match self.receipt_lookup.get(&receipt.checksum) {
                 Some(event) => event.clone(),
@@ -32,6 +36,11 @@ impl Interpreter {
                     continue;
                 },
             };
+            debug!("matched event in receipt: message=\n{}", to_string_pretty(&event)?);
+
+            debug!("checking consistency updates from receipt");
+            self.increment_consistency_if_required(event.consistency.key.clone(),
+                                                   event.consistency.value)?;
 
             match bus.receipt_handlers.get(&event.event_type.clone()) {
                 Some(key) => {

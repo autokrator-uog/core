@@ -37,29 +37,32 @@ impl Interpreter {
                           event_type: String, implicit: bool,
                           correlation_id: Option<u32>) -> Result<(), Error> {
         let correlation_id = if let Some(correlation_id) = correlation_id {
+            debug!("using existing correlation id: id='{}'", correlation_id);
             correlation_id
         } else {
+            debug!("generating new correlation id");
             self.rng.borrow_mut().gen::<u32>()
         };
 
+        debug!("checking consistency for send");
         let consistency_value = if implicit {
+            debug!("implicit consistency");
             ConsistencyValue::Implicit
         } else {
             match self.consistency.entry(consistency_key.clone()) {
                 Entry::Occupied(mut entry) => {
-                    let mut value = entry.get_mut();
-
-                    if let &mut ConsistencyValue::Explicit(v) = value {
-                        v + 1;
-                        ()
-                    } else {
-                        return Err(Error::from(ErrorKind::ImplicitConsistencyInMap));
+                    match entry.get() {
+                        &ConsistencyValue::Explicit(v) => {
+                            debug!("existing consistency key: existing_value='{}' \
+                                   sending_value='{}'", v, v + 1);
+                            ConsistencyValue::Explicit(v + 1)
+                        },
+                        _ => return Err(Error::from(ErrorKind::ImplicitConsistencyInMap)),
                     }
-
-                    value.clone()
                 },
                 Entry::Vacant(entry) => {
                     let initial = ConsistencyValue::Explicit(0);
+                    debug!("new consistency key: value='{}'", initial);
                     entry.insert(initial.clone());
                     initial
                 }

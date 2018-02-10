@@ -10,7 +10,7 @@ use error::ErrorKind;
 
 pub type ConsistencyKey = String;
 
-#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, PartialOrd, Ord, Serialize)]
 pub enum ConsistencyValue {
     Implicit,
     Explicit(u32),
