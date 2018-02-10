@@ -56,7 +56,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn save_timestamp_for_query(&mut self, event: &EventSchema) -> Result<(), Error> {
+    pub fn save_timestamp_for_query(&mut self, event: &EventSchema) -> Result<(), Error> {
         let key = String::from(TIMESTAMP_KEY);
         let value = event.timestamp_raw.ok_or(Error::from(ErrorKind::NoTimestampProvided))?;
         debug!("persisting timestamp: timestamp_raw='{}'", value);

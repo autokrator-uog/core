@@ -23,6 +23,9 @@ impl Interpreter {
         let parsed: Event = from_str(&event.message).context(ErrorKind::ParseEventMessage)?;
         debug!("received rebuild event: message=\n{}", to_string_pretty(&parsed)?);
 
+        debug!("saving timestamp for query");
+        self.save_timestamp_for_query(&parsed)?;
+
         debug!("checking consistency updates from event");
         self.increment_consistency_if_required(parsed.consistency.key.clone(),
                                                parsed.consistency.value)?;
