@@ -1,6 +1,6 @@
 use failure::ResultExt;
 use redis::{Client as RedisClient, Commands};
-use rlua::{Table, UserData, UserDataMethods};
+use rlua::{Table, ToLua, UserData, UserDataMethods, Value as LuaValue};
 use serde_json::{Value, from_str, to_string, to_string_pretty};
 
 use error::ErrorKind;
@@ -39,10 +39,14 @@ impl UserData for RedisInterface {
             debug!("received get call from lua");
 
             info!("querying redis: key='{}'", key);
-            match this.redis.get::<_, String>(key).context(ErrorKind::RedisQuery) {
+            match this.redis.get::<_, Option<String>>(key).context(ErrorKind::RedisQuery) {
                 Ok(value) => {
-                    let parsed: Value = from_str(&value).to_lua_error()?;
-                    Ok(json_to_lua(lua, parsed).to_lua_error()?)
+                    if let Some(value) = value {
+                        let parsed: Value = from_str(&value).to_lua_error()?;
+                        Ok(LuaValue::Table(json_to_lua(lua, parsed).to_lua_error()?))
+                    } else {
+                        Ok(value.to_lua(lua)?)
+                    }
                 },
                 Err(e) => Err(e.to_lua_error()),
             }
