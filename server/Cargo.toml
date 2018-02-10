@@ -8,7 +8,11 @@ authors = [
         "Patrick Menlove <patrickmenlove@hotmail.co.uk>",
         "David Wood <david@davidtw.co>"
 ]
-description = "Event bus server for the Vicarius team project for Avaloq"
+description = "Event bus server for the SED team project for Avaloq"
+
+[[bin]]
+name = "busd"
+path = "src/main.rs"
 
 [dependencies]
 chrono = "0.4.0"

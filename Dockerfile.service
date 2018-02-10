@@ -8,10 +8,13 @@ RUN apt-get update \
 
 WORKDIR /usr/src/app
 COPY . .
+WORKDIR /usr/src/app/service
 
 RUN RUST_BACKTRACE=1 cargo install
 
 ENV LOG_LEVEL debug
-ENV BIND 0.0.0.0:8081
+ENV BIND 0.0.0.0:8080
+ENV SERVICE services/transaction.lua
 
-CMD event-bus -l $LOG_LEVEL server -b $BIND
+CMD serviced -l $LOG_LEVEL -b $BIND $SERVICE
+# vim:ft=dockerfile
