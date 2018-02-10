@@ -6,6 +6,7 @@ use common::schemas::{Register, Query};
 use failure::{Error, ResultExt};
 use redis::Commands;
 use rlua::Table;
+use serde_json::to_string_pretty;
 
 use client::Client;
 use error::ErrorKind;
@@ -67,13 +68,14 @@ impl Interpreter {
         let event_types: Vec<_> = bus.event_types.into_iter().collect();
         let client_type = bus.client_type.ok_or(ErrorKind::ClientNotLinkedToInterpreter)?;
 
-        info!("sending register message to server: event_types='{:?}' client_type='{}'",
-              event_types, client_type);
-        client.send(SendMessage(Register {
+        let register = Register {
             client_type,
             event_types,
             message_type: String::from("register"),
-        }));
+        };
+
+        info!("sending register message to server: message=\n{}", to_string_pretty(&register)?);
+        client.send(SendMessage(register));
         Ok(())
     }
 
