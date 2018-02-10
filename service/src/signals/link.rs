@@ -1,13 +1,15 @@
 use std::process::exit;
 
 use actix::{AsyncContext, Context, Handler, SyncAddress, ResponseType};
-use common::schemas::Register;
+use chrono::{DateTime, NaiveDateTime, Utc};
+use common::schemas::{Register, Query};
 use failure::{Error, ResultExt};
+use redis::Commands;
 use rlua::Table;
 
 use client::Client;
 use error::ErrorKind;
-use interpreter::{Bus, Interpreter, Logger, RedisInterface};
+use interpreter::{TIMESTAMP_KEY, Bus, Interpreter, Logger, RedisInterface};
 use signals::SendMessage;
 
 static LUA_LIBRARY: &'static str = include_str!("../../vendor/json.lua");
@@ -33,6 +35,43 @@ impl Interpreter {
 
         info!("setting global: name='{}'", name);
         globals.set(name, script_result)?;
+        Ok(())
+    }
+
+    fn send_query_for_timestamp(&mut self, client: &SyncAddress<Client>) -> Result<(), Error> {
+        let globals = self.lua.globals();
+        let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
+
+        let value = match self.redis.get::<_, i64>(TIMESTAMP_KEY) {
+            Ok(v) => v,
+            Err(_) => 0,
+        };
+        let as_datetime = DateTime::<Utc>::from_utc(NaiveDateTime::from_timestamp(value, 0), Utc);
+        debug!("querying for timestamp: value='{}' corresponding_date='{}'", value, as_datetime);
+
+        client.send(SendMessage(Query {
+            event_types: bus.event_types,
+            since: as_datetime.to_rfc3339(),
+            message_type: String::from("query"),
+        }));
+
+        Ok(())
+    }
+
+    fn send_register_message(&mut self, client: &SyncAddress<Client>) -> Result<(), Error> {
+        let globals = self.lua.globals();
+        let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
+
+        let event_types = bus.event_types;
+        let client_type = bus.client_type.ok_or(ErrorKind::ClientNotLinkedToInterpreter)?;
+
+        info!("sending register message to server: event_types='{:?}' client_type='{}'",
+              event_types, client_type);
+        client.send(SendMessage(Register {
+            client_type,
+            event_types,
+            message_type: String::from("register"),
+        }));
         Ok(())
     }
 
@@ -64,24 +103,10 @@ impl Interpreter {
         debug!("finished script evaluation");
 
         // Now we have evaluated the script, register.
-        self.send_register_message(client)
-    }
+        self.send_register_message(&client)?;
 
-    fn send_register_message(&mut self, client: SyncAddress<Client>) -> Result<(), Error> {
-        let globals = self.lua.globals();
-        let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
-
-        let event_types = bus.event_types;
-        let client_type = bus.client_type.ok_or(ErrorKind::ClientNotLinkedToInterpreter)?;
-
-        info!("sending register message to server: event_types='{:?}' client_type='{}'",
-              event_types, client_type);
-        client.send(SendMessage(Register {
-            client_type,
-            event_types,
-            message_type: "register".to_owned(),
-        }));
-        Ok(())
+        // Then query for rebuilding.
+        self.send_query_for_timestamp(&client)
     }
 }
 

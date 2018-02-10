@@ -7,6 +7,13 @@ bus:add_event_listener("deposit", function(event_type, consistency_key, correlat
     log:debug(data)
 end)
 
+bus:add_rebuild_handler("deposit", function(event_type, consistency_key, correlation_id, data)
+    log:debug(event_type)
+    log:debug(consistency_key)
+    log:debug(correlation_id)
+    log:debug(data)
+end)
+
 bus:add_receipt_listener("deposit", function(status, event_type, consistency_key, correlation_id,
                                              data)
     log:debug(redis:get("test"))

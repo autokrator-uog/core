@@ -7,11 +7,12 @@ use common::schemas::{
     Event as EventSchema,
 };
 use failure::{Error, Fail, ResultExt};
+use redis::Commands;
 use rlua::Function;
 use serde_json::{from_str, to_string_pretty};
 
 use error::ErrorKind;
-use interpreter::{Bus, Interpreter, json_to_lua};
+use interpreter::{TIMESTAMP_KEY, Bus, Interpreter, json_to_lua};
 use signals::SendMessage;
 
 /// The `Event` signal is sent from the client to the interpreter when a new event is received from
@@ -55,11 +56,22 @@ impl Interpreter {
         Ok(())
     }
 
+    fn save_timestamp_for_query(&mut self, event: &EventSchema) -> Result<(), Error> {
+        let key = String::from(TIMESTAMP_KEY);
+        let value = event.timestamp_raw.ok_or(Error::from(ErrorKind::NoTimestampProvided))?;
+        debug!("persisting timestamp: timestamp_raw='{}'", value);
+        self.redis.set::<String, i64, _>(key, value).context(
+            ErrorKind::RedisPersist).map_err(Error::from)
+    }
+
     fn handle_event(&mut self, event: Event) -> Result<(), Error> {
         let parsed: EventSchema = from_str(&event.message).context(ErrorKind::ParseEventMessage)?;
         debug!("received event: message=\n{}", to_string_pretty(&parsed)?);
         // We'll send this if handler succeeds.
         let mut awknowledgement = parsed.clone();
+
+        debug!("saving timestamp for query");
+        self.save_timestamp_for_query(&parsed)?;
 
         debug!("checking consistency updates from event");
         self.increment_consistency_if_required(parsed.consistency.key.clone(),

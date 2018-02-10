@@ -2,6 +2,7 @@
 
 extern crate actix;
 extern crate actix_web;
+extern crate chrono;
 #[macro_use] extern crate clap;
 extern crate common;
 #[macro_use] extern crate failure;

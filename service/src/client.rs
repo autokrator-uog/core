@@ -22,7 +22,7 @@ use websocket::message::OwnedMessage;
 
 use error::ErrorKind;
 use interpreter::Interpreter;
-use signals::{Event, Link, Receipt, Registration};
+use signals::{Event, Link, Rebuild, Receipt, Registration};
 
 pub struct Client {
     pub interpreter: SyncAddress<Interpreter>,
@@ -92,6 +92,13 @@ impl Client {
                     message: contents
                 });
                 info!("sent event message to interpreter");
+            },
+            "rebuild" => {
+                info!("sending rebuild message to interpreter");
+                self.interpreter.send(Rebuild {
+                    message: contents
+                });
+                info!("sent rebuild message to interpreter");
             },
             "receipt" => {
                 info!("sending receipt message to interpreter");

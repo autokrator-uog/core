@@ -11,6 +11,7 @@ authors = [
 description = "Microservice framework for the Vicarius team project for Avaloq"
 
 [dependencies]
+chrono = "0.4.0"
 clap = "2.27.1"
 failure = "0.1.1"
 http = "0.1.4"

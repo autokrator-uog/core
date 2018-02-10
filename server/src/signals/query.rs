@@ -67,7 +67,8 @@ impl Bus {
 
                     let parsed_row: CouchbaseStoredEvent = from_str(&row.as_ref()).context(
                         ErrorKind::CouchbaseDeserialize)?;
-                    let event = parsed_row.events;
+                    let mut event = parsed_row.events.clone();
+                    event.message_type = Some(String::from("rebuild"));
 
                     client_session.send(SendToClient(event));
                 },

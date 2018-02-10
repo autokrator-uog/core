@@ -57,11 +57,15 @@ pub enum ErrorKind {
 
     #[fail(display = "Event handler not found in Lua register")]
     MissingEventHandlerRegistryValue,
+    #[fail(display = "Rebuild handler not found in Lua register")]
+    MissingRebuildHandlerRegistryValue,
     #[fail(display = "Receipt handler not found in Lua register")]
     MissingReceiptHandlerRegistryValue,
     #[fail(display = "HTTP handler not found in Lua register")]
     MissingHttpHandlerRegistryValue,
 
+    #[fail(display = "Failure when running rebuild handler")]
+    FailedRebuildHandler,
     #[fail(display = "Failure when running event handler")]
     FailedEventHandler,
     #[fail(display = "Failure when running HTTP handler")]
@@ -114,6 +118,9 @@ pub enum ErrorKind {
     MatchesToLua,
     #[fail(display = "Failed adding route to router")]
     AddRoute,
+
+    #[fail(display = "No timestamp was provided")]
+    NoTimestampProvided,
 }
 
 impl Error {

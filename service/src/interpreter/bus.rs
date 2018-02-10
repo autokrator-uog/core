@@ -23,6 +23,7 @@ pub struct Bus {
     pub client_type: Option<String>,
 
     pub event_handlers: HashMap<String, String>,
+    pub rebuild_handlers: HashMap<String, String>,
     pub receipt_handlers: HashMap<String, String>,
     pub http_router: Rc<Router>,
 }
@@ -34,6 +35,7 @@ impl Bus {
             event_types: Vec::new(),
             client_type: None,
             event_handlers: HashMap::new(),
+            rebuild_handlers: HashMap::new(),
             receipt_handlers: HashMap::new(),
             http_router: Rc::new(Router::new()),
         }
@@ -66,6 +68,21 @@ impl UserData for Bus {
             match this.event_handlers.insert(event_type.clone(), key) {
                 Some(_) => info!("old event handler replaced: type='{}'", event_type),
                 None => info!("new event handler added: type='{}'", event_type),
+            }
+            Ok(())
+        });
+
+        methods.add_method_mut("add_rebuild_handler", |lua, this,
+                               (event_type, handler): (String, Function)| {
+            debug!("received add_rebuild_handler call from lua: event_type='{}'", event_type);
+            this.event_types.push(event_type.clone());
+
+            let key = this.generate_key();
+            lua.set_named_registry_value(&key, handler)?;
+
+            match this.rebuild_handlers.insert(event_type.clone(), key) {
+                Some(_) => info!("old rebuild handler replaced: type='{}'", event_type),
+                None => info!("new rebuild handler added: type='{}'", event_type),
             }
             Ok(())
         });

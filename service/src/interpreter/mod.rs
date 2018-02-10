@@ -25,6 +25,8 @@ pub use interpreter::helpers::{json_to_lua, lua_to_json};
 pub use interpreter::logger::Logger;
 pub use interpreter::redis::RedisInterface;
 
+pub const TIMESTAMP_KEY: &'static str = "__CLIENT_TIMESTAMP";
+
 pub struct Interpreter {
     pub client: Option<SyncAddress<Client>>,
     pub consistency: HashMap<ConsistencyKey, ConsistencyValue>,

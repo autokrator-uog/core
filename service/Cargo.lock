@@ -1256,6 +1256,7 @@ version = "0.1.0"
 dependencies = [
  "actix 0.5.0 (git+https://github.com/actix/actix.git?rev=136fd07)",
  "actix-web 0.4.0 (git+https://github.com/davidtwco/actix-web.git?rev=8590eca)",
+ "chrono 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "clap 2.29.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "common 0.1.0",
  "failure 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
