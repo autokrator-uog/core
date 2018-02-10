@@ -42,6 +42,8 @@ impl Interpreter {
         let globals = self.lua.globals();
         let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
 
+        let event_types: Vec<_> = bus.event_types.into_iter().collect();
+
         let value = match self.redis.get::<_, i64>(TIMESTAMP_KEY) {
             Ok(v) => v,
             Err(_) => 0,
@@ -50,7 +52,7 @@ impl Interpreter {
         debug!("querying for timestamp: value='{}' corresponding_date='{}'", value, as_datetime);
 
         client.send(SendMessage(Query {
-            event_types: bus.event_types,
+            event_types,
             since: as_datetime.to_rfc3339(),
             message_type: String::from("query"),
         }));
@@ -62,7 +64,7 @@ impl Interpreter {
         let globals = self.lua.globals();
         let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
 
-        let event_types = bus.event_types;
+        let event_types: Vec<_> = bus.event_types.into_iter().collect();
         let client_type = bus.client_type.ok_or(ErrorKind::ClientNotLinkedToInterpreter)?;
 
         info!("sending register message to server: event_types='{:?}' client_type='{}'",

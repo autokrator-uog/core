@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use actix::{Arbiter, SyncAddress};
@@ -19,7 +19,7 @@ use signals::NewEvent;
 pub struct Bus {
     pub interpreter: SyncAddress<Interpreter>,
 
-    pub event_types: Vec<String>,
+    pub event_types: HashSet<String>,
     pub client_type: Option<String>,
 
     pub event_handlers: HashMap<String, String>,
@@ -32,7 +32,7 @@ impl Bus {
     pub fn new(address: SyncAddress<Interpreter>) -> Self {
         Self {
             interpreter: address,
-            event_types: Vec::new(),
+            event_types: HashSet::new(),
             client_type: None,
             event_handlers: HashMap::new(),
             rebuild_handlers: HashMap::new(),
@@ -60,7 +60,7 @@ impl UserData for Bus {
         methods.add_method_mut("add_event_listener", |lua, this,
                                (event_type, handler): (String, Function)| {
             debug!("received add_event_listener call from lua: event_type='{}'", event_type);
-            this.event_types.push(event_type.clone());
+            this.event_types.insert(event_type.clone());
 
             let key = this.generate_key();
             lua.set_named_registry_value(&key, handler)?;
@@ -75,7 +75,7 @@ impl UserData for Bus {
         methods.add_method_mut("add_rebuild_handler", |lua, this,
                                (event_type, handler): (String, Function)| {
             debug!("received add_rebuild_handler call from lua: event_type='{}'", event_type);
-            this.event_types.push(event_type.clone());
+            this.event_types.insert(event_type.clone());
 
             let key = this.generate_key();
             lua.set_named_registry_value(&key, handler)?;
