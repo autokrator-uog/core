@@ -35,6 +35,7 @@ bus:add_event_listener("RejectedTransaction", function(event_type, key, correlat
 end)
 
 bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlation, data)
+    log:debug("received pending transaction rebuild")
     local transaction = redis:get(key)
     -- If this transaction is not already in redis (it could be if we got the accepted or rejected
     -- transaction first).
@@ -46,13 +47,15 @@ bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlat
 end)
 
 bus:add_rebuild_handler("AcceptedTransaction", function(event_type, key, correlation, data)
+    log:debug("received accepted transaction rebuild")
     local transaction = redis:get(key)
-    -- If this transaction is not already in redis (it could be if we got the accepted or rejected
+    -- If this transaction is not already in redis (it could be if we got the pending or rejected
     -- transaction first).
     if not transaction then
         local status = { status = "accepted" }
         for k, v in pairs(status) do data[k] = v end
         redis:set(key, data)
+    -- If the transaction does exist, just update the status.
     else
         transaction.status = "accepted"
         redis:set(key, transaction)
@@ -60,14 +63,15 @@ bus:add_rebuild_handler("AcceptedTransaction", function(event_type, key, correla
 end)
 
 bus:add_rebuild_handler("RejectedTransaction", function(event_type, key, correlation, data)
+    log:debug("received rejected transaction rebuild")
     local transaction = redis:get(key)
-
-    -- If this transaction is not already in redis (it could be if we got the accepted or rejected
+    -- If this transaction is not already in redis (it could be if we got the accepted or pending
     -- transaction first).
     if not transaction then
         local status = { status = "rejected" }
         for k, v in pairs(status) do data[k] = v end
         redis:set(key, data)
+    -- If the transaction does exist, just update the status.
     else
         transaction.status = "rejected"
         redis:set(key, transaction)
@@ -77,7 +81,6 @@ end)
 -- We only need a receipt listener for event types that we send.
 bus:add_receipt_listener("PendingTransaction", function(status, event_type, key, correlation, data)
     log:debug("received pending transaction receipt")
-
     local transaction = redis:get(key)
 
     if transaction then
