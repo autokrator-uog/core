@@ -140,3 +140,22 @@ bus:add_route("/createTransaction", "POST", function(method, route, args, data)
 
     return { transactionId = id }
 end)
+
+-- /transactions returns the status of a transaction.
+bus:add_route("/transaction/{id}", "GET", function(method, route, args, data)
+    log:debug("received transaction request")
+
+    -- Find the ID of the transaction that will have been persisted.
+    local key = TRANS_PREFIX .. args.id
+
+    -- Get the information we have stored about this transaction.
+    local data = redis:get(key)
+
+    if data then
+        -- Return the data we have.
+        return data
+    else
+        -- Return an error if we don't have data.
+        return { error = "could not find transaction with id: " .. args.id }
+    end
+end)
