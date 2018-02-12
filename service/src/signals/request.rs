@@ -30,7 +30,7 @@ impl Response {
 pub struct Request {
     pub method: Method,
     pub uri: Uri,
-    pub content: Value,
+    pub content: Option<Value>,
 }
 
 impl ResponseType for Request {
@@ -42,10 +42,15 @@ impl Interpreter {
     fn handle_request(&mut self, req: Request) -> Result<Response, Error> {
         let uri = format!("{}", req.uri);
         let method = String::from(req.method.as_str());
-        info!("handling request from http: uri='{}' method='{}' content=\n{}",
-              uri, method, to_string_pretty(&req.content)?);
-        let content = json_to_lua(&self.lua, req.content).context(
-            ErrorKind::ParseHttpContent)?;
+
+        let content = if let Some(content) = req.content {
+            info!("handling request from http: uri='{}' method='{}' content=\n{}",
+                  uri, method, to_string_pretty(&content)?);
+            Some(json_to_lua(&self.lua, content).context(ErrorKind::ParseHttpContent)?)
+        } else {
+            info!("handling request from http: uri='{}' method='{}'", uri, method);
+            None
+        };
 
         let globals = self.lua.globals();
         let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;

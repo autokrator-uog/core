@@ -1,8 +1,10 @@
+use std::str::from_utf8;
+
 use actix::SyncAddress;
 use actix_web::{Application, AsyncResponder, Error as ActixWebError, HttpRequest, HttpResponse, HttpServer};
 use actix_web::httpcodes::HTTPInternalServerError;
 use failure::{Error, ResultExt};
-use serde_json::Value;
+use serde_json::from_str;
 use websocket::async::futures::Future;
 
 use error::ErrorKind;
@@ -19,13 +21,16 @@ fn handle(req: HttpRequest<State>) -> Box<Future<Item=HttpResponse, Error=ActixW
     let method = req.method().clone();
     let uri = req.uri().clone();
 
-    req.json()
+    req.body()
+       .limit(2048)
        .from_err()
-       .and_then(move |value: Value| {
+       .and_then(move |bytes| {
+           let body: Option<String> = from_utf8(&bytes.to_vec()).ok().map(|val| String::from(val));
+
            let request = Request {
                method: method,
                uri: uri,
-               content: value,
+               content: body.and_then(|val| from_str(&val).ok()),
            };
 
            match interpreter.call_fut(request).wait() {
