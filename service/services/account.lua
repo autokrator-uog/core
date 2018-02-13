@@ -64,7 +64,7 @@ function create_account(id, request_id, send_event)
     if send_event then
         -- Send the account created event.
         bus:send("AccountCreated", key, true, correlation, {
-            acc_id = id, request_id = data.request_id
+            acc_id = id, request_id = request_id
         })
     end
 end
@@ -74,11 +74,11 @@ bus:add_event_listener("AccountCreationRequest", function(event_type, key, corre
     log:debug("received " .. event_type .. " event")
     -- Get the next ID.
     local last_id = redis:get(ID_KEY)
-    local id = last_id.id + 1
+    local next_id = last_id.id + 1
     redis:set(ID_KEY, { id = next_id })
 
     -- Create a new account and send the event out.
-    create_account(data.request_id, true)
+    create_account(next_id ,data.request_id, true)
 end)
 
 function handle_balance_change(event_type, key, correlation, data)
