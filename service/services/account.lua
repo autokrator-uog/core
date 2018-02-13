@@ -197,8 +197,8 @@ bus:add_route("/account/{id}/deposit", "POST", function(method, route, args, dat
     local account = redis:get(key)
     if account then
         -- Save the changes.
-        account.balance = account.balance + data.amount
-        redis:set(key, account)
+        --account.balance = account.balance + data.amount
+        --redis:set(key, account)
 
         -- Send the credit event.
         bus:send("ConfirmedCredit", key, false, nil, {
@@ -225,8 +225,8 @@ bus:add_route("/account/{id}/withdrawal", "POST", function(method, route, args, 
         -- Check if the withdrawal can be afforded.
         if account.balance - data.amount > 0 then
             -- Save the changes.
-            account.balance = account.balance - data.amount
-            redis:set(key, account)
+            --account.balance = account.balance - data.amount
+            --redis:set(key, account)
 
             -- Send the credit event.
             bus:send("ConfirmedDebit", key, false, nil, {

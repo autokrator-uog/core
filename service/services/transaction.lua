@@ -106,14 +106,15 @@ bus:add_route("/createTransaction", "POST", function(method, route, args, data)
     log:debug("received " .. route .. " request")
     -- Get the next ID.
     local last_id = redis:get(ID_KEY)
-    local id = last_id.id + 1
+    log:debug(last_id)
+    local next_id = last_id.id + 1
     redis:set(ID_KEY, { id = next_id })
 
     -- While this should be exactly what is in `data` from the request, by constructing this
     -- ourselves, this will error if the wrong fields are provided and a internal server error
     -- response will be sent.
     local event_data = {
-        id = id,
+        id = next_id,
         fromAccountId = data.fromAccountId,
         toAccountId = data.toAccountId,
         amount = data.amount,
@@ -121,7 +122,7 @@ bus:add_route("/createTransaction", "POST", function(method, route, args, data)
 
     -- Set our consistency key to be "trans-X" where X is the ID. It's useful to add a prefix
     -- because then we can filter on the key from Redis in other operations.
-    local key = PREFIX .. id
+    local key = PREFIX .. next_id
 
     -- Store information about this new transaction.
     -- We create a new table with the extra information that we will combine with `event_data`
@@ -139,7 +140,7 @@ bus:add_route("/createTransaction", "POST", function(method, route, args, data)
     -- Send the new event.
     bus:send("PendingTransaction", key, implicit, consistency, event_data)
 
-    return { transactionId = id }
+    return { transactionId = next_id }
 end)
 
 -- /transactions returns the status of a transaction.

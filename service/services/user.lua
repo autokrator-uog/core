@@ -139,7 +139,7 @@ bus:add_route("/user/{username}", "POST", function(method, route, args, data)
         request_id = next_id,
         username = args.username
     }
-    local account = { status = pending }
+    local account = { status = "pending" }
     
     for k, v in pairs(event_data) do account[k] = v end
     local implicit = true
