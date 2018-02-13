@@ -66,7 +66,11 @@ impl Bus {
         for unawknowledged_event in unawknowledged_events.iter() {
             debug!("re-propagating unawknowledged event: event=\n{}",
                    to_string_pretty(&unawknowledged_events)?);
-            self.propagate_event(unawknowledged_event.clone());
+            // We should convert this back to a event for sending - in the list it is meant for
+            // matching with the expected incoming acks.
+            let mut unawknowledged_event = unawknowledged_event.clone();
+            unawknowledged_event.message_type = Some(String::from("event"));
+            self.propagate_event(unawknowledged_event);
         }
 
         Ok(())
