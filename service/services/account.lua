@@ -161,14 +161,13 @@ bus:add_receipt_listener("ConfirmedCredit", handle_receipt)
 bus:add_receipt_listener("ConfirmedDebit", handle_receipt)
 
 -- /account/{id} returns the balance (and other details) of the requested account.
-bus:add_route("/account/{accountId}", "GET", function(method, route, args, data)
+bus:add_route("/account/{id}", "GET", function(method, route, args, data)
     log:debug("received " .. route .. " request")
     -- Get the information we have stored about this account.
-    local data = redis:get(PREFIX .. args.id)
-
-    if data then
+    local account = redis:get(PREFIX .. args.id)
+    if account then
         -- Return some of the data.
-        return { id = data.id, balance = data.balance }
+        return { id = account.id, balance = account.balance }
     else
         -- Return an error if we don't have data.
         return { error = "could not find account with id: " .. args.id }
@@ -177,14 +176,71 @@ end)
 
 -- /account/{id}/statement returns a sequence of credits and debits that have happened to the
 -- account.
-bus:add_route("/account/{accountId}/statement", "GET", function(method, route, args, data)
+bus:add_route("/account/{id}/statement", "GET", function(method, route, args, data)
     log:debug("received " .. route .. " request")
-    -- Get the information we have stored about this transaction.
-    local data = redis:get(PREFIX .. args.id)
-
-    if data then
+    -- Get the information we have stored about this account.
+    local account = redis:get(PREFIX .. args.id)
+    if account then
         -- Return some of the data.
-        return { id = data.id, statements = data.statements }
+        return { id = account.id, statements = account.statements }
+    else
+        -- Return an error if we don't have data.
+        return { error = "could not find account with id: " .. args.id }
+    end
+end)
+
+-- /account/{id}/deposit makes a deposit to an account.
+bus:add_route("/account/{id}/deposit", "POST", function(method, route, args, data)
+    log:debug("received " .. route .. " request")
+    -- Get the information we have stored about this account.
+    local key = PREFIX .. args.id
+    local account = redis:get(key)
+    if account then
+        -- Save the changes.
+        account.balance = account.balance + data.amount
+        redis:set(key, account)
+
+        -- Send the credit event.
+        bus:send("ConfirmedCredit", key, false, nil, {
+            id = account.id,
+            amount = data.amount,
+            note = "Deposit to " .. account.id,
+        })
+
+        -- Return some of the data.
+        return { id = account.id, balance = account.balance }
+    else
+        -- Return an error if we don't have data.
+        return { error = "could not find account with id: " .. args.id }
+    end
+end)
+
+-- /account/{id}/withdrawal makes a deposit to an account.
+bus:add_route("/account/{id}/withdrawal", "POST", function(method, route, args, data)
+    log:debug("received " .. route .. " request")
+    -- Get the information we have stored about this account.
+    local key = PREFIX .. args.id
+    local account = redis:get(key)
+    if account then
+        -- Check if the withdrawal can be afforded.
+        if account.balance - data.amount > 0 then
+            -- Save the changes.
+            account.balance = account.balance - data.amount
+            redis:set(key, account)
+
+            -- Send the credit event.
+            bus:send("ConfirmedDebit", key, false, nil, {
+                id = account.id,
+                amount = data.amount,
+                note = "Withdrawal from " .. account.id,
+            })
+
+            -- Return some of the data.
+            return { id = account.id, balance = account.balance }
+        else
+            -- Return an error if we don't have data.
+            return { error = "not enough funds" }
+        end
     else
         -- Return an error if we don't have data.
         return { error = "could not find account with id: " .. args.id }
