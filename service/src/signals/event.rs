@@ -29,6 +29,12 @@ impl ResponseType for Event {
 impl Interpreter {
     pub fn increment_consistency_if_required(&mut self, key: ConsistencyKey,
                                              value: ConsistencyValue) -> Result<(), Error> {
+        // We don't want to increment if the value was implicit, this can happen from receipts.
+        if let ConsistencyValue::Implicit = value {
+            debug!("ignoring implicit consistency increment");
+            return Ok(());
+        }
+
         // Increment the consistency value if the consistency value in this event is higher than
         // what we have locally.
         debug!("checking for consistency increment");
