@@ -51,14 +51,26 @@ impl Interpreter {
         } else {
             match self.consistency.entry(consistency_key.clone()) {
                 Entry::Occupied(mut entry) => {
-                    match entry.get() {
-                        &ConsistencyValue::Explicit(v) => {
-                            debug!("existing consistency key: existing_value='{}' \
-                                   sending_value='{}'", v, v + 1);
-                            ConsistencyValue::Explicit(v + 1)
-                        },
-                        _ => return Err(Error::from(ErrorKind::ImplicitConsistencyInMap)),
-                    }
+                    // We increment the consistency when we send events. As far as I can tell,
+                    // there isn't a reason this will break.
+                    //
+                    // As long as we never send an event with a consistency key higher than
+                    // expected, this should be fine.
+                    let next_value = {
+                        match entry.get() {
+                            &ConsistencyValue::Explicit(v) => {
+                                debug!("existing consistency key: existing_value='{}' \
+                                       sending_value='{}'", v, v + 1);
+                                v + 1
+                            },
+                            _ => return Err(Error::from(ErrorKind::ImplicitConsistencyInMap)),
+                        }
+                    };
+
+                    let value = ConsistencyValue::Explicit(next_value);
+                    debug!("using and updating consistency value: value='{}'", next_value);
+                    entry.insert(value.clone());
+                    value
                 },
                 Entry::Vacant(entry) => {
                     let initial = ConsistencyValue::Explicit(0);
