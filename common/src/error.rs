@@ -19,10 +19,6 @@ pub enum ErrorKind {
     ParseConsistencyValue,
     #[fail(display = "Attempt to get value of implicit consistency value")]
     GetValueOfImplicitConsistency,
-    #[fail(display = "Failed to parse bytes as UTF8 string")]
-    ParseBytesAsUtf8,
-    #[fail(display = "Received invalid message type over websockets")]
-    InvalidWebsocketMessageType,
 }
 
 impl Error {

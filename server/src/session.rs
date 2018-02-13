@@ -1,7 +1,9 @@
+use std::str::from_utf8;
 use std::net::SocketAddr;
 
 use actix::{
     Actor,
+    ActorContext,
     Address,
     AsyncContext,
     Context,
@@ -9,7 +11,6 @@ use actix::{
     FramedWriter,
     StreamHandler
 };
-use common::websocket_message_contents;
 use failure::{Error, ResultExt};
 use serde_json::{from_str, Value};
 use websocket::async::TcpStream;
@@ -43,8 +44,26 @@ impl Session {
     /// Process an incoming message on the Websockets connection.
     fn process_message(&mut self, message: OwnedMessage,
                        ctx: &mut Context<Self>) -> Result<(), Error> {
-        let contents = websocket_message_contents(message).context(
-            ErrorKind::InvalidWebsocketMessageType)?;
+        let contents: String = match message {
+            OwnedMessage::Text(m) => m,
+            OwnedMessage::Binary(b) => {
+                from_utf8(&b).context(ErrorKind::ParseBytesAsUtf8)?.to_string()
+            },
+            OwnedMessage::Close(_) => {
+                info!("received a close from server");
+                ctx.stop();
+                return Ok(());
+            },
+            OwnedMessage::Ping(d) => {
+                info!("received a ping from server");
+                self.framed.send(OwnedMessage::Pong(d));
+                return Ok(());
+            },
+            OwnedMessage::Pong(_) => {
+                info!("received a pong from server");
+                return Ok(());
+            },
+        };
 
         let parsed_contents: Value = from_str(&contents).context(
                 ErrorKind::ParseJsonFromWebsockets)?;
@@ -103,9 +122,11 @@ impl Session {
 
 impl Actor for Session {
     type Context = Context<Self>;
+}
 
+impl StreamHandler<OwnedMessage, FramedError<MessageCodec<OwnedMessage>>> for Session {
     // When we get a new session, talk to the bus actor and add it to the sessions map.
-    fn started(&mut self, ctx: &mut Context<Self>) {
+    fn started(&mut self, ctx: &mut Self::Context) {
         debug!("started session: client='{}'", self.addr);
 
         info!("sending connect message to bus");
@@ -117,8 +138,14 @@ impl Actor for Session {
         info!("sent connect message to bus");
     }
 
+    fn handle(&mut self, message: OwnedMessage, ctx: &mut Context<Self>) {
+        if let Err(e) = self.process_message(message, ctx) {
+            error!("processing message from websockets: session='{}' error='{}'", self.addr, e);
+        }
+    }
+
     // When we're done with a session, talk to the bus actor and remove it from the sessions map.
-    fn stopped(&mut self, _: &mut Context<Self>) {
+    fn finished(&mut self, _: &mut Self::Context) {
         debug!("finished session: client='{}'", self.addr);
 
         info!("sending disconnect message to bus");
@@ -127,27 +154,5 @@ impl Actor for Session {
         };
         self.bus.send(disconnect);
         info!("sent connect message to bus");
-    }
-}
-
-impl StreamHandler<OwnedMessage, FramedError<MessageCodec<OwnedMessage>>> for Session {
-    fn handle(&mut self, message: OwnedMessage, ctx: &mut Context<Self>) {
-        if let Err(e) = self.process_message(message, ctx) {
-            match &e.downcast::<ErrorKind>() {
-                &Ok(ErrorKind::InvalidWebsocketMessageType) => {
-                    warn!("invalid message type: session='{}' error='{}'",
-                           self.addr, Error::from(ErrorKind::InvalidWebsocketMessageType));
-                },
-                // Not able to collapse these two conditions into a single condition.
-                &Ok(ref e) => {
-                    error!("processing message from websockets: session='{}' error='{}'",
-                           self.addr, e);
-                }
-                &Err(ref e) => {
-                    error!("processing message from websockets: session='{}' error='{}'",
-                           self.addr, e);
-                },
-            }
-        }
     }
 }

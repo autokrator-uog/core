@@ -20,6 +20,8 @@ pub enum ErrorKind {
     ParseJsonFromWebsockets,
     #[fail(display = "No message type in JSON from websockets")]
     NoMessageTypeFromWebsockets,
+    #[fail(display = "Failed to parse bytes as UTF8 string")]
+    ParseBytesAsUtf8,
 
     #[fail(display = "Unable to bind to http port")]
     HttpBindToPort,

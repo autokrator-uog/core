@@ -5,7 +5,7 @@ extern crate chrono;
 extern crate colored;
 #[macro_use] extern crate failure;
 extern crate fern;
-#[macro_use] extern crate log;
+extern crate log;
 extern crate serde;
 #[macro_use] extern crate serde_derive;
 extern crate serde_json;
@@ -19,5 +19,5 @@ mod logging;
 pub mod schemas;
 
 pub use extensions::VecDequeExt;
-pub use helpers::{hash_json, websocket_message_contents};
+pub use helpers::hash_json;
 pub use logging::configure_logging;
