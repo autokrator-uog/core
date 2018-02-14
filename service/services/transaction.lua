@@ -140,7 +140,7 @@ bus:add_route("/createTransaction", "POST", function(method, route, args, data)
     -- Send the new event.
     bus:send("PendingTransaction", key, implicit, consistency, event_data)
 
-    return { transactionId = next_id }
+    return HTTP_CREATED, { transactionId = next_id }
 end)
 
 -- /transactions returns the status of a transaction.
@@ -151,9 +151,9 @@ bus:add_route("/transaction/{id}", "GET", function(method, route, args, data)
 
     if data then
         -- Return the data we have.
-        return data
+        return HTTP_OK, data
     else
         -- Return an error if we don't have data.
-        return { error = "could not find transaction with id: " .. args.id }
+        return HTTP_NOT_FOUND, { error = "could not find transaction with id: " .. args.id }
     end
 end)

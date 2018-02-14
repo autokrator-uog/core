@@ -4,6 +4,7 @@ mod helpers;
 mod logger;
 mod redis;
 mod router;
+mod status_codes;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -24,6 +25,7 @@ pub use interpreter::bus::Bus;
 pub use interpreter::helpers::{json_to_lua, lua_to_json};
 pub use interpreter::logger::Logger;
 pub use interpreter::redis::RedisInterface;
+pub use interpreter::status_codes::add_http_status_codes;
 
 pub const TIMESTAMP_KEY: &'static str = "__CLIENT_TIMESTAMP";
 
@@ -46,10 +48,13 @@ impl Interpreter {
         let redis = RedisClient::open(redis_address.deref()).context(
             ErrorKind::RedisClientCreate)?;
 
+        let mut lua = Lua::new();
+        add_http_status_codes(&mut lua)?;
+
         let interpreter = Self {
             client: None,
             consistency: HashMap::new(),
-            lua: Lua::new(),
+            lua: lua,
             receipt_lookup: HashMap::new(),
             redis: redis,
             rng: RefCell::new(rand::thread_rng()),

@@ -19,6 +19,7 @@ end
 -- Listen for when an account is created, add it to its corresponding user.
 bus:add_event_listener("AccountCreated", function(event_type, key, correlation, data)
     log:debug("received account created event")
+
     local request_key = ACCOUNT_PREFIX .. data.request_id
     local account = redis:get(request_key)
     if not account then
@@ -27,9 +28,10 @@ bus:add_event_listener("AccountCreated", function(event_type, key, correlation, 
         for k, v in pairs(data) do account[k] = v end
     else
         -- Else set status to created
-        account.status = "created"   
+        account.status = "created"
     end
     redis:set(request_key, account)
+
     -- Add the new account to it's respective user.
     local user_key = USER_PREFIX .. account.username
     user = redis:get(user_key)
@@ -47,15 +49,15 @@ bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, da
         user = { accounts = {} }
         for k, v in pairs(data) do user[k] = v end
         redis:set(key, user)
-    else 
+    else
         log:warn("tried to rebuild user that already exists, how did this happen?")
     end
-end)    
+end)
 
 bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data)
     -- Rebuild request id if possible.
     rebuild_id(data.request_id)
-    
+
     log:debug("received account created event")
     local request_key = ACCOUNT_PREFIX .. data.request_id
     local account = redis:get(request_key)
@@ -65,9 +67,10 @@ bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation,
         for k, v in pairs(data) do account[k] = v end
     else
         -- Else set status to created
-        account.status = "created"   
+        account.status = "created"
     end
     redis:set(request_key, account)
+
     -- Add the new account to it's respective user.
     local user_key = USER_PREFIX .. account.username
     user = redis:get(user_key)
@@ -102,42 +105,35 @@ end
 bus:add_receipt_listener("AccountCreationRequest", handle_receipt)
 bus:add_receipt_listener("UserCreated", handle_receipt)
 
-
 bus:add_route("/user", "POST", function(method, route, args, data)
     log:debug("recieved create user request")
     local key = USER_PREFIX .. data.username
     if redis:get(key) then
         log:debug("create user failed, username already taken")
-        return { 
-            status = "failed"
-        }
+        return HTTP_BAD_REQUEST, { status = "failed" }
     end
-    
+
     -- Passwords are not implemented at current.
-    local event_data = { 
-        username = data.username, 
-        password = ""
-    }
-    local user = {
-        accounts = {} 
-    } 
+    local event_data = { username = data.username, password = "" }
+    local user = { accounts = {} }
     for k, v in pairs(event_data) do user[k] = v end
     redis:set(key, user)
-    local implicit = true
-    local consistency = nil
-    bus:send("UserCreated", key, implicit, consistency, event_data)
-    return { status = "created" }
+
+    bus:send("UserCreated", key, true, nil, event_data)
+    return HTTP_OK, { status = "created" }
 end)
 
 bus:add_route("/user/{username}", "GET", function(method, route, args, data)
     log:debug("received get accounts request")
-    
+
     key = USER_PREFIX .. args.username
     local user = redis:get(key)
-    if not user.accounts then 
+
+    if not user.accounts then
         user.accounts = {}
     end
-    return { accounts = user.accounts }
+
+    return HTTP_OK, { accounts = user.accounts }
 end)
 
 bus:add_route("/user/{username}", "POST", function(method, route, args, data)
@@ -145,29 +141,26 @@ bus:add_route("/user/{username}", "POST", function(method, route, args, data)
     local last_id = redis:get(ID_KEY)
     local next_id = last_id.id + 1
     redis:set(ID_KEY, { id = next_id })
-    
+
     local key = ACCOUNT_PREFIX .. next_id
-    event_data = {
-        request_id = next_id,
-        username = args.username
-    }
+
+    event_data = { request_id = next_id, username = args.username }
     local account = { status = "pending" }
-    
     for k, v in pairs(event_data) do account[k] = v end
-    local implicit = true
-    local consistency = nil
     redis:set(key, account)
-    bus:send("AccountCreationRequest", key, implicit, consistency, event_data)
-    return { status = "pending", request_id = next_id }
+
+    bus:send("AccountCreationRequest", key, true, nil, event_data)
+    return HTTP_CREATED, { status = "pending", request_id = next_id }
 end)
 
 bus:add_route("/user/{username}/{request_id}", "GET", function(method, route, args, data)
     local key = ACCOUNT_PREFIX .. args.request_id
     request = redis:get(key)
-    
+
     if not request then
         log:debug("recieved request with unknown id")
-        return { status = "unknown" }
+        return HTTP_NOT_FOUND, { status = "unknown" }
     end
-    return { status = request.status }
+
+    return HTTP_OK, { status = request.status }
 end)

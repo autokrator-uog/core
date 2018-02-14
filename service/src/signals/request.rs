@@ -1,6 +1,5 @@
 use actix::{Context, Handler, ResponseType};
-use actix_web::{Error as WebError, HttpResponse, Method};
-use actix_web::httpcodes::{HTTPNotFound, HTTPOk};
+use actix_web::Method;
 use failure::{Error, Fail, ResultExt};
 use http::uri::Uri;
 use rlua::{Function, ToLua, Value as LuaValue};
@@ -9,21 +8,7 @@ use serde_json::{Value, to_string_pretty};
 use error::ErrorKind;
 use interpreter::{Bus, Interpreter, json_to_lua, lua_to_json};
 
-pub enum Response {
-    NotFound,
-    Empty,
-    NonEmpty(Value),
-}
-
-impl Response {
-    pub fn to_http_response(self) -> Result<HttpResponse, WebError> {
-        match self {
-            Response::NotFound => Ok(HTTPNotFound.into()),
-            Response::Empty => Ok(HTTPOk.into()),
-            Response::NonEmpty(val) => HTTPOk.build().json(val),
-        }
-    }
-}
+pub struct Response(pub u16, pub Option<Value>);
 
 /// The `Request` signal is sent from the http server to the interpreter when a http request is
 /// received that needs dealt with.
@@ -71,8 +56,8 @@ impl Interpreter {
 
                 debug!("calling http handler");
                 let args = (method, uri, matches_table, content);
-                let result = match function.call::<_, LuaValue>(args) {
-                    Ok(r) => r,
+                let (status_code, result) = match function.call::<_, (u16, LuaValue)>(args) {
+                    Ok((s, r)) => (s, r),
                     Err(e) => {
                         error!("failure running http hander: \n\n{}\n", e);
                         return Err(Error::from(e.context(ErrorKind::FailedHttpHandler)));
@@ -81,16 +66,16 @@ impl Interpreter {
 
                 match result {
                     LuaValue::Nil => {
-                        debug!("responding to http request with empty response");
-                        Ok(Response::Empty)
+                        debug!("responding to http request: status_code='{}'", status_code);
+                        Ok(Response(status_code, None))
                     },
                     LuaValue::Table(t) => {
                         let value: Value = lua_to_json(&self.lua, t).context(
                             ErrorKind::ParseHttpHandlerResult)?;
 
-                        debug!("responding to http request: content=\n{}",
-                               to_string_pretty(&value)?);
-                        Ok(Response::NonEmpty(value))
+                        debug!("responding to http request: status_code='{}' content=\n{}",
+                               status_code, to_string_pretty(&value)?);
+                        Ok(Response(status_code, Some(value)))
                     },
                     _ => {
                         error!("invalid return type from http handler");
@@ -100,7 +85,7 @@ impl Interpreter {
             },
             None => {
                 warn!("received request for route that could not be found");
-                Ok(Response::NotFound)
+                Ok(Response(404, None))
             }
         }
     }
