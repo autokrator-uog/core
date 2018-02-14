@@ -137,7 +137,7 @@ bus:add_route("/user/{username}", "GET", function(method, route, args, data)
     if not user.accounts then 
         user.accounts = {}
     end
-    return { username = user.accounts }
+    return { accounts = user.accounts }
 end)
 
 bus:add_route("/user/{username}", "POST", function(method, route, args, data)
