@@ -1,7 +1,15 @@
 use std::str::from_utf8;
 
 use actix::SyncAddress;
-use actix_web::{Application, AsyncResponder, Error as ActixWebError, HttpRequest, HttpResponse, HttpServer};
+use actix_web::{
+    Application,
+    AsyncResponder,
+    Error as ActixWebError,
+    HttpRequest,
+    HttpResponse,
+    HttpServer,
+    StatusCode,
+};
 use actix_web::httpcodes::HTTPInternalServerError;
 use failure::{Error, ResultExt};
 use serde_json::from_str;
@@ -34,7 +42,19 @@ fn handle(req: HttpRequest<State>) -> Box<Future<Item=HttpResponse, Error=ActixW
            };
 
            match interpreter.call_fut(request).wait() {
-               Ok(Ok(response)) => Ok(response.to_http_response()?),
+               Ok(Ok(response)) => {
+                   let status_code = match StatusCode::from_u16(response.0) {
+                       Ok(code) => code,
+                       Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+                   };
+
+                   let mut constructed = HttpResponse::build(status_code);
+                   if let Some(value) = response.1 {
+                       constructed.json(value)
+                   } else {
+                       constructed.finish().map_err(ActixWebError::from)
+                   }
+               },
                Err(e) => {
                    error!("failure in request signal: error='{}'", e);
                    Ok(HTTPInternalServerError.into())

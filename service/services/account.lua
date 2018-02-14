@@ -167,10 +167,10 @@ bus:add_route("/account/{id}", "GET", function(method, route, args, data)
     local account = redis:get(PREFIX .. args.id)
     if account then
         -- Return some of the data.
-        return { id = account.id, balance = account.balance }
+        return HTTP_OK, { id = account.id, balance = account.balance }
     else
         -- Return an error if we don't have data.
-        return { error = "could not find account with id: " .. args.id }
+        return HTTP_NOT_FOUND, { error = "could not find account with id: " .. args.id }
     end
 end)
 
@@ -182,10 +182,10 @@ bus:add_route("/account/{id}/statement", "GET", function(method, route, args, da
     local account = redis:get(PREFIX .. args.id)
     if account then
         -- Return some of the data.
-        return { id = account.id, statements = account.statements }
+        return HTTP_OK, { id = account.id, statements = account.statements }
     else
         -- Return an error if we don't have data.
-        return { error = "could not find account with id: " .. args.id }
+        return HTTP_NOT_FOUND, { error = "could not find account with id: " .. args.id }
     end
 end)
 
@@ -205,10 +205,10 @@ bus:add_route("/account/{id}/deposit", "POST", function(method, route, args, dat
         })
 
         -- Return some of the data.
-        return { id = account.id, status = "pending" }
+        return HTTP_CREATED, { id = account.id, status = "pending" }
     else
         -- Return an error if we don't have data.
-        return { error = "could not find account with id: " .. args.id }
+        return HTTP_NOT_FOUND, { error = "could not find account with id: " .. args.id }
     end
 end)
 
@@ -230,13 +230,13 @@ bus:add_route("/account/{id}/withdrawal", "POST", function(method, route, args, 
             })
 
             -- Return some of the data.
-            return { id = account.id, status = "pending" }
+            return HTTP_CREATED, { id = account.id, status = "pending" }
         else
             -- Return an error if we don't have data.
-            return { error = "not enough funds" }
+            return HTTP_BAD_REQUEST, { error = "not enough funds" }
         end
     else
         -- Return an error if we don't have data.
-        return { error = "could not find account with id: " .. args.id }
+        return HTTP_NOT_FOUND, { error = "could not find account with id: " .. args.id }
     end
 end)
