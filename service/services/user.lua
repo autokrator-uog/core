@@ -129,8 +129,8 @@ bus:add_route("/user/{username}", "GET", function(method, route, args, data)
     key = USER_PREFIX .. args.username
     local user = redis:get(key)
 
-    if not user.accounts then
-        user.accounts = {}
+    if not user then
+        return HTTP_NOT_FOUND, { error = "user not found: ".. args.username }
     end
 
     return HTTP_OK, { accounts = user.accounts }
