@@ -2,7 +2,9 @@ version: '3'
 
 services:
   eventbus:
-    build: ..
+    build:
+      context: ..
+      dockerfile: Dockerfile.server
     environment:
       BROKER: kafka:9092
       TOPIC: events
