@@ -11,6 +11,10 @@ if ! grep -q zookeeper /etc/hosts; then
    echo "127.0.0.1 zookeeper" >> /etc/hosts
 fi
 
+if ! grep -q redis /etc/hosts; then
+   echo "127.0.0.1 redis" >> /etc/hosts
+fi
+
 if ! grep -q couchbase.db /etc/hosts; then
    echo "127.0.0.1 couchbase.db" >> /etc/hosts
 fi
