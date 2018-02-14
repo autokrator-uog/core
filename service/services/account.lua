@@ -120,7 +120,7 @@ function rebuild_id(previous_id)
     end
 end
 
-bus:add_rebuild_handler("AccountCreation", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data)
     -- Rebuild the ID if we can.
     rebuild_id(data.acc_id)
     -- Create a new account with the same request ID but without the event being created.
@@ -154,7 +154,7 @@ function handle_receipt(status, event_type, key, correlation, data)
 end
 
 -- Only handle the receipts for event types that this service sends out.
-bus:add_receipt_listener("AccountCreation", handle_receipt)
+bus:add_receipt_listener("AccountCreated", handle_receipt)
 bus:add_receipt_listener("AcceptedTransaction", handle_receipt)
 bus:add_receipt_listener("RejectedTransaction", handle_receipt)
 bus:add_receipt_listener("ConfirmedCredit", handle_receipt)
@@ -196,9 +196,6 @@ bus:add_route("/account/{id}/deposit", "POST", function(method, route, args, dat
     local key = PREFIX .. args.id
     local account = redis:get(key)
     if account then
-        -- Save the changes.
-        --account.balance = account.balance + data.amount
-        --redis:set(key, account)
 
         -- Send the credit event.
         bus:send("ConfirmedCredit", key, false, nil, {
@@ -208,7 +205,7 @@ bus:add_route("/account/{id}/deposit", "POST", function(method, route, args, dat
         })
 
         -- Return some of the data.
-        return { id = account.id, balance = account.balance }
+        return { id = account.id, status = "pending" }
     else
         -- Return an error if we don't have data.
         return { error = "could not find account with id: " .. args.id }
@@ -224,9 +221,6 @@ bus:add_route("/account/{id}/withdrawal", "POST", function(method, route, args, 
     if account then
         -- Check if the withdrawal can be afforded.
         if account.balance - data.amount > 0 then
-            -- Save the changes.
-            --account.balance = account.balance - data.amount
-            --redis:set(key, account)
 
             -- Send the credit event.
             bus:send("ConfirmedDebit", key, false, nil, {
@@ -236,7 +230,7 @@ bus:add_route("/account/{id}/withdrawal", "POST", function(method, route, args, 
             })
 
             -- Return some of the data.
-            return { id = account.id, balance = account.balance }
+            return { id = account.id, status = "pending" }
         else
             -- Return an error if we don't have data.
             return { error = "not enough funds" }

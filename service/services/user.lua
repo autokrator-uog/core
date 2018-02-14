@@ -48,7 +48,7 @@ bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, da
         for k, v in pairs(data) do user[k] = v end
         redis:set(key, user)
     else 
-        log:debug("tried to rebuild user that already exists, how did this happen?")
+        log:warn("tried to rebuild user that already exists, how did this happen?")
     end
 end)    
 
@@ -90,6 +90,18 @@ bus:add_rebuild_handler("AccountCreationRequest", function(event_type, key, corr
         redis:set(key, account)
     end
 end)
+
+function handle_receipt(status, event_type, key, correlation, data)
+    log:debug("received " .. event_type .. " receipt")
+    -- Resend the event.
+    if status == "inconsistent" then
+        bus:send(event_type, key, false, correlation, data)
+    end
+end
+
+bus:add_receipt_listener("AccountCreationRequest", handle_receipt)
+bus:add_receipt_listener("UserCreated", handle_receipt)
+
 
 bus:add_route("/user", "POST", function(method, route, args, data)
     log:debug("recieved create user request")

@@ -28,7 +28,7 @@ end
 
 -- Handle these in a generic way.
 bus:add_event_listener("AcceptedTransaction", handle_accepted_or_rejected("accepted"))
-bus:add_event_listener("AcceptedTransaction", handle_accepted_or_rejected("rejected"))
+bus:add_event_listener("RejectedTransaction", handle_accepted_or_rejected("rejected"))
 
 function rebuild_id(previous_id)
     -- When rebuilding, make sure we keep the ID correct.
