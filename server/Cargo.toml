@@ -1,0 +1,41 @@
+[package]
+name = "server"
+version = "0.2.0"
+authors = [
+        "Connor Jardine <connorjardine97@gmail.com>",
+        "Frank Bojen <f.bojen@gmail.com>",
+        "Naji Shehab <naji.shehab@hotmail.com>",
+        "Patrick Menlove <patrickmenlove@hotmail.co.uk>",
+        "David Wood <david@davidtw.co>"
+]
+description = "Event bus server for the SED team project for Avaloq"
+
+[[bin]]
+name = "busd"
+path = "src/main.rs"
+
+[dependencies]
+chrono = "0.4.0"
+clap = "2.27.1"
+failure = "0.1.1"
+futures = "0.1.17"
+log = "0.3.8"
+rand = "0.4.2"
+rdkafka = "0.13.0"
+serde = "1.0.19"
+serde_derive = "1.0.19"
+serde_json = "1.0.5"
+common = { path = "../common" }
+websocket = "0.20.2"
+
+[dependencies.actix]
+git = "https://github.com/actix/actix.git"
+rev = "136fd07"
+
+[dependencies.couchbase]
+git = "https://github.com/couchbaselabs/couchbase-rs.git"
+branch = "master"
+
+[dependencies.couchbase-sys]
+git = "https://github.com/couchbaselabs/couchbase-rs.git"
+branch = "master"

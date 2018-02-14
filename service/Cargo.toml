@@ -1,0 +1,39 @@
+[package]
+name = "service"
+version = "0.1.0"
+authors = [
+        "Connor Jardine <connorjardine97@gmail.com>",
+        "Frank Bojen <f.bojen@gmail.com>",
+        "Naji Shehab <naji.shehab@hotmail.com>",
+        "Patrick Menlove <patrickmenlove@hotmail.co.uk>",
+        "David Wood <david@davidtw.co>"
+]
+description = "Microservice framework for the SED team project for Avaloq"
+
+[[bin]]
+name = "serviced"
+path = "src/main.rs"
+
+[dependencies]
+chrono = "0.4.0"
+clap = "2.27.1"
+failure = "0.1.1"
+http = "0.1.4"
+log = "0.3.8"
+serde = "1.0.19"
+serde_json = "1.0.5"
+rand = "0.4.2"
+redis = "0.8.0"
+regex = "0.2.5"
+rlua = "0.11.0"
+common = { path = "../common" }
+websocket = "0.20.2"
+
+[dependencies.actix]
+git = "https://github.com/actix/actix.git"
+rev = "136fd07"
+
+# Change this back to the main repository once actix/actix-web#66 is merged.
+[dependencies.actix-web]
+git = "https://github.com/davidtwco/actix-web.git"
+rev = "8590eca"

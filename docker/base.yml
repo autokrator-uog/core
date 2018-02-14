@@ -27,3 +27,8 @@ services:
     ports:
       - 8091-8094:8091-8094
       - 11210-11211:11210-11211
+
+  redis:
+    image: redis:alpine
+    ports:
+      - 6379:6379
