@@ -66,6 +66,19 @@ impl Bus {
         Ok(())
     }
 
+    fn persist_consistency_to_couchbase<T: Serialize>(&mut self, map: &T) -> Result<(), Error> {
+        let serialized = to_string(map).context(
+            ErrorKind::SerializeJsonForSending)?;
+
+        let document = BinaryDocument::create("consistency", None,
+                                        Some(serialized.as_bytes().to_owned()), None);
+
+        info!("saving event in couchbase: map=\n{}", serialized);
+        self.consistency_bucket.upsert(document).wait()?;
+
+        Ok(())
+    }
+
     pub fn process_new_event(&mut self, message: NewEvent) -> Result<(), Error> {
         let (session, addr) = message.sender;
 
@@ -122,6 +135,8 @@ impl Bus {
             let mut status = "inconsistent";
             if success {
                 self.consistency.insert(key, value.clone());
+                let map_clone = self.consistency.clone();
+                self.persist_consistency_to_couchbase(&map_clone)?;
                 status = "success";
 
                 info!("sending event to kafka: sequence_key='{}', sequence_value='{}'",

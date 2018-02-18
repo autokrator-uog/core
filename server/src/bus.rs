@@ -3,11 +3,13 @@ use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
 use common::schemas::{ConsistencyKey, ConsistencyValue, Event};
-use couchbase::{Bucket};
+use couchbase::{Bucket, BinaryDocument};
 use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
+use futures::Future;
+use serde_json::{from_str};
 
 use error::ErrorKind;
 use persistence::connect_to_bucket;
@@ -70,7 +72,10 @@ pub struct Bus {
     pub producer: FutureProducer<EmptyContext>,
     /// This field contains the couchbase bucket that will be used when persisting events to
     /// Couchbase.
-    pub couchbase_bucket: Bucket
+    pub couchbase_bucket: Bucket,
+    /// This field contains the couchbase bucket that will be used when persisting the consistency
+    /// map to couchbase.
+    pub consistency_bucket: Bucket
 }
 
 impl Bus {
@@ -81,7 +86,14 @@ impl Bus {
             .create::<FutureProducer<_>>()
             .context(ErrorKind::KafkaProducerCreation)?;
 
-        let bucket = connect_to_bucket(couchbase_host)?;
+        let bucket = connect_to_bucket(couchbase_host, "events")?;
+        let consistency_bucket = connect_to_bucket(couchbase_host, "consistency")?;
+        /*let document =  match consistency_bucket.get("consistency").wait() {
+            BinaryDocument => info!("1"),
+            Err(e) => info!("2"),
+        };*/
+        //let consistency_from = from_str(document.content);
+        //info!("got map {:?}", document);
 
         Ok(Self {
             sessions: HashMap::new(),
@@ -91,6 +103,7 @@ impl Bus {
             consistency: HashMap::new(),
             producer: producer,
             couchbase_bucket: bucket,
+            consistency_bucket: consistency_bucket,
         }.start())
     }
 }

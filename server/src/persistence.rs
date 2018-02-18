@@ -36,7 +36,7 @@ fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
+pub fn connect_to_bucket(couchbase_host: &str, bucket_name: &str) -> Result<Bucket, Error> {
     // This is simply a state object, it doesn't actually initiate connections.
     let mut cluster = Cluster::new(couchbase_host)?;
     cluster.authenticate("connect", "connect");
@@ -44,7 +44,7 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
 
     // Retry logic on opening bucket.
     let mut retries = MAX_RETRIES;
-    let mut bucket = cluster.open_bucket(BUCKET_NAME, None);
+    let mut bucket = cluster.open_bucket(bucket_name, None);
 
     while bucket.is_err() && retries > 0 {
         match bucket {
@@ -54,23 +54,23 @@ pub fn connect_to_bucket(couchbase_host: &str) -> Result<Bucket, Error> {
             // This is the error that is called if the bucket does not exist, somehow...
             Err(CouchbaseError::AuthFailed) => {
                 warn!("the bucket does not exist. waiting for it to be created: \
-                      bucket='{}' retries_remaining='{}'", BUCKET_NAME, retries);
+                      bucket='{}' retries_remaining='{}'", bucket_name, retries);
             },
             Err(err) => {
                 error!("failed to connect to couchbase: bucket='{}' host='{}' \
                        error='{}' retries_remaining='{}'",
-                       BUCKET_NAME, couchbase_host, err, retries);
+                       bucket_name, couchbase_host, err, retries);
             },
         }
 
         retries -= 1;
-        bucket = cluster.open_bucket(BUCKET_NAME, None);
+        bucket = cluster.open_bucket(bucket_name, None);
         thread::sleep(time::Duration::from_millis(RETRY_INTERVAL_MILLIS));
     }
 
     let bucket = match bucket {
         Ok(bucket) => {
-            info!("successfully connected to couchbase bucket: bucket='{}'", BUCKET_NAME);
+            info!("successfully connected to couchbase bucket: bucket='{}'", bucket_name);
             bucket
         },
         Err(e) => {
