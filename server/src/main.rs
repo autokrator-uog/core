@@ -1,4 +1,4 @@
-
+#![deny(warnings)]
 
 extern crate actix;
 extern crate chrono;

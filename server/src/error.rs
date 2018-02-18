@@ -51,6 +51,9 @@ pub enum ErrorKind {
     #[fail(display = "Failed to serialize value to json for sending")]
     SerializeJsonForSending,
 
+    #[fail(display = "Failed to serialize hashmap for persisting")]
+    SerializeHashMapForCouchbase,
+
     #[fail(display = "Message from Kafka with no payload")]
     KafkaMessageWithNoPayload,
 

@@ -72,7 +72,7 @@ pub struct Bus {
     pub producer: FutureProducer<EmptyContext>,
     /// This field contains the couchbase bucket that will be used when persisting events to
     /// Couchbase.
-    pub couchbase_bucket: Bucket,
+    pub event_bucket: Bucket,
     /// This field contains the couchbase bucket that will be used when persisting the consistency
     /// map to couchbase.
     pub consistency_bucket: Bucket
@@ -86,23 +86,37 @@ impl Bus {
             .create::<FutureProducer<_>>()
             .context(ErrorKind::KafkaProducerCreation)?;
 
-        let bucket = connect_to_bucket(couchbase_host, "events")?;
+        let event_bucket = connect_to_bucket(couchbase_host, "events")?;
         let consistency_bucket = connect_to_bucket(couchbase_host, "consistency")?;
-        /*let document =  match consistency_bucket.get("consistency").wait() {
-            BinaryDocument => info!("1"),
-            Err(e) => info!("2"),
-        };*/
-        //let consistency_from = from_str(document.content);
-        //info!("got map {:?}", document);
 
+        let consistency_map =  match consistency_bucket.get::<BinaryDocument, _> ("consistency").wait() {
+            Ok(doc) => {
+                let content = doc.content_as_str()?;
+                match content {
+                    Some(text) => {
+                        let imported_consistency: HashMap<ConsistencyKey, ConsistencyValue> = from_str(text)?;
+                        imported_consistency
+                    }
+                    None => {
+                        error!("map is in couchbase but content is empty. exiting");
+                        HashMap::new()
+                        }   
+                }
+            }
+            Err(e) => {
+                info!("hashmap doesn't exist: {:?}. creating new map", e);
+                HashMap::new()
+                }
+        };
+        
         Ok(Self {
             sessions: HashMap::new(),
             round_robin_state: HashMap::new(),
             sticky_consistency: HashMap::new(),
             topic: topic.to_owned(),
-            consistency: HashMap::new(),
+            consistency: consistency_map,
             producer: producer,
-            couchbase_bucket: bucket,
+            event_bucket: event_bucket,
             consistency_bucket: consistency_bucket,
         }.start())
     }
