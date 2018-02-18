@@ -89,24 +89,24 @@ impl Bus {
         let event_bucket = connect_to_bucket(couchbase_host, "events")?;
         let consistency_bucket = connect_to_bucket(couchbase_host, "consistency")?;
 
-        let consistency_map =  match consistency_bucket.get::<BinaryDocument, _> ("consistency").wait() {
+        let consistency =  match consistency_bucket.get::<BinaryDocument, _> ("consistency").wait() {
             Ok(doc) => {
                 let content = doc.content_as_str()?;
                 match content {
                     Some(text) => {
-                        let imported_consistency: HashMap<ConsistencyKey, ConsistencyValue> = from_str(text)?;
-                        imported_consistency
-                    }
+                        let map: HashMap<ConsistencyKey, ConsistencyValue> = from_str(text)?;
+                        map
+                    },
                     None => {
-                        error!("map is in couchbase but content is empty. exiting");
+                        info!("empty consistency map found in couchbase, creating new map");
                         HashMap::new()
-                        }   
+                    },   
                 }
-            }
+            },
             Err(e) => {
-                info!("hashmap doesn't exist: {:?}. creating new map", e);
+                info!("hashmap does not exist, creating new map: error='{:?}'", e);
                 HashMap::new()
-                }
+            },
         };
         
         Ok(Self {
@@ -114,7 +114,7 @@ impl Bus {
             round_robin_state: HashMap::new(),
             sticky_consistency: HashMap::new(),
             topic: topic.to_owned(),
-            consistency: consistency_map,
+            consistency: consistency,
             producer: producer,
             event_bucket: event_bucket,
             consistency_bucket: consistency_bucket,

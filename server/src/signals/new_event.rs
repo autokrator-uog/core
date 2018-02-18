@@ -72,7 +72,7 @@ impl Bus {
             ErrorKind::SerializeHashMapForCouchbase)?;
 
         let document = BinaryDocument::create("consistency", None,
-                                        Some(serialized.as_bytes().to_owned()), None);
+                                              Some(serialized.as_bytes().to_owned()), None);
 
         info!("persisting updated consistency values to couchbase");
         self.consistency_bucket.upsert(document).wait()?;
@@ -137,9 +137,8 @@ impl Bus {
             if success {
                 self.consistency.insert(key, value.clone());
                 if let Err(e) = self.persist_consistency_to_couchbase() {
-                    warn!("failed to save consistency to couchbase: {:?}", e);
+                    warn!("failed to save consistency to couchbase: error='{:?}'", e);
                 } 
-                self.persist_consistency_to_couchbase()?;
                 status = "success";
 
                 info!("sending event to kafka: sequence_key='{}', sequence_value='{}'",
