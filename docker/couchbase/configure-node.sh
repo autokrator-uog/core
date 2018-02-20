@@ -29,6 +29,10 @@ curl -i -u connect:connect -X POST http://127.0.0.1:8091/settings/indexes -d 'st
 
 # Create events bucket
 curl -v -u connect:connect -X POST http://127.0.0.1:8091/pools/default/buckets \
-      -d name=events -d ramQuotaMB=250 -d authType=none -d replicaNumber=0 -d bucketType=couchbase
+      -d name=events -d ramQuotaMB=125 -d authType=none -d replicaNumber=0 -d bucketType=couchbase
+
+# Create consistency bucket
+curl -v -u connect:connect -X POST http://127.0.0.1:8091/pools/default/buckets \
+      -d name=consistency -d ramQuotaMB=125 -d authType=none -d replicaNumber=0 -d bucketType=couchbase
 
 fg 1

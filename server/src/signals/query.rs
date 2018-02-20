@@ -54,7 +54,7 @@ impl Bus {
         debug!("executing query: query='{}'", query);
 
         let client_session = message.sender;
-        let result_iter = self.couchbase_bucket.query_n1ql(query).wait();
+        let result_iter = self.event_bucket.query_n1ql(query).wait();
 
         for row in result_iter {
             match row {

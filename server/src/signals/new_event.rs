@@ -61,7 +61,21 @@ impl Bus {
                                               Some(serialized.as_bytes().to_owned()), None);
 
         info!("saving event in couchbase: event=\n{}", pretty_serialized);
-        self.couchbase_bucket.upsert(document).wait()?;
+        self.event_bucket.upsert(document).wait()?;
+
+        Ok(())
+    }
+
+    fn persist_consistency_to_couchbase(&mut self) -> Result<(), Error> {
+        let map = self.consistency.clone();
+        let serialized = to_string(&map).context(
+            ErrorKind::SerializeHashMapForCouchbase)?;
+
+        let document = BinaryDocument::create("consistency", None,
+                                              Some(serialized.as_bytes().to_owned()), None);
+
+        info!("persisting updated consistency values to couchbase");
+        self.consistency_bucket.upsert(document).wait()?;
 
         Ok(())
     }
@@ -122,6 +136,9 @@ impl Bus {
             let mut status = "inconsistent";
             if success {
                 self.consistency.insert(key, value.clone());
+                if let Err(e) = self.persist_consistency_to_couchbase() {
+                    warn!("failed to save consistency to couchbase: error='{:?}'", e);
+                } 
                 status = "success";
 
                 info!("sending event to kafka: sequence_key='{}', sequence_value='{}'",

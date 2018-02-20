@@ -3,11 +3,13 @@ use std::net::SocketAddr;
 
 use actix::{Actor, Address, Context};
 use common::schemas::{ConsistencyKey, ConsistencyValue, Event};
-use couchbase::{Bucket};
+use couchbase::{Bucket, BinaryDocument};
 use failure::{Error, ResultExt};
 use rdkafka::client::EmptyContext;
 use rdkafka::config::ClientConfig;
 use rdkafka::producer::FutureProducer;
+use futures::Future;
+use serde_json::{from_str};
 
 use error::ErrorKind;
 use persistence::connect_to_bucket;
@@ -70,7 +72,10 @@ pub struct Bus {
     pub producer: FutureProducer<EmptyContext>,
     /// This field contains the couchbase bucket that will be used when persisting events to
     /// Couchbase.
-    pub couchbase_bucket: Bucket
+    pub event_bucket: Bucket,
+    /// This field contains the couchbase bucket that will be used when persisting the consistency
+    /// map to couchbase.
+    pub consistency_bucket: Bucket
 }
 
 impl Bus {
@@ -81,16 +86,39 @@ impl Bus {
             .create::<FutureProducer<_>>()
             .context(ErrorKind::KafkaProducerCreation)?;
 
-        let bucket = connect_to_bucket(couchbase_host)?;
+        let event_bucket = connect_to_bucket(couchbase_host, "events")?;
+        let consistency_bucket = connect_to_bucket(couchbase_host, "consistency")?;
 
+        let consistency = match consistency_bucket.get::<BinaryDocument, _>("consistency").wait() {
+            Ok(doc) => {
+                let content = doc.content_as_str()?;
+                match content {
+                    Some(text) => {
+                        info!("found existing hashmap in consistency bucket, using that");
+                        let map: HashMap<ConsistencyKey, ConsistencyValue> = from_str(text)?;
+                        map
+                    },
+                    None => {
+                        info!("empty consistency map found in couchbase, creating new map");
+                        HashMap::new()
+                    },   
+                }
+            },
+            Err(e) => {
+                info!("hashmap does not exist, creating new map: error='{:?}'", e);
+                HashMap::new()
+            },
+        };
+        
         Ok(Self {
             sessions: HashMap::new(),
             round_robin_state: HashMap::new(),
             sticky_consistency: HashMap::new(),
             topic: topic.to_owned(),
-            consistency: HashMap::new(),
+            consistency: consistency,
             producer: producer,
-            couchbase_bucket: bucket,
+            event_bucket: event_bucket,
+            consistency_bucket: consistency_bucket,
         }.start())
     }
 }
