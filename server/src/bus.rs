@@ -89,11 +89,12 @@ impl Bus {
         let event_bucket = connect_to_bucket(couchbase_host, "events")?;
         let consistency_bucket = connect_to_bucket(couchbase_host, "consistency")?;
 
-        let consistency =  match consistency_bucket.get::<BinaryDocument, _> ("consistency").wait() {
+        let consistency = match consistency_bucket.get::<BinaryDocument, _>("consistency").wait() {
             Ok(doc) => {
                 let content = doc.content_as_str()?;
                 match content {
                     Some(text) => {
+                        info!("found existing hashmap in consistency bucket, using that");
                         let map: HashMap<ConsistencyKey, ConsistencyValue> = from_str(text)?;
                         map
                     },
