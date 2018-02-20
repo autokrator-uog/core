@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet};
+use std::process::exit;
 use std::rc::Rc;
 
 use actix::{Arbiter, SyncAddress};
@@ -102,6 +103,11 @@ impl UserData for Bus {
 
         methods.add_method_mut("add_route", |lua, this,
                                (path, method, handler): (String, String, Function)| {
+            if path == "/health_check" {
+                error!("closing service, attempt to override health check route");
+                exit(1);
+            }
+
             debug!("received add_route call from lua: path='{}' method='{}'", path, method);
             let key = this.generate_key();
             lua.set_named_registry_value(&key, handler)?;

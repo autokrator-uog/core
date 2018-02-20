@@ -10,7 +10,7 @@ use actix_web::{
     HttpServer,
     StatusCode,
 };
-use actix_web::httpcodes::HTTPInternalServerError;
+use actix_web::httpcodes::{HTTPInternalServerError, HTTPOk};
 use failure::{Error, ResultExt};
 use serde_json::from_str;
 use websocket::async::futures::Future;
@@ -28,6 +28,15 @@ fn handle(req: HttpRequest<State>) -> Box<Future<Item=HttpResponse, Error=ActixW
     let interpreter = req.state().interpreter.clone();
     let method = req.method().clone();
     let uri = req.uri().clone();
+
+    if req.uri() == "/health_check" {
+        info!("responding to health check");
+        return req.body()
+            .from_err()
+            .and_then(move |_| {
+                Ok(HTTPOk.with_body("OK"))
+            }).responder();
+    }
 
     req.body()
        .limit(2048)
