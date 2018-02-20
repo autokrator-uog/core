@@ -24,13 +24,13 @@ struct State {
 }
 
 fn handle(req: HttpRequest<State>) -> Box<Future<Item=HttpResponse, Error=ActixWebError>> {
-    info!("received a request on http");
+    debug!("received a request on http");
     let interpreter = req.state().interpreter.clone();
     let method = req.method().clone();
     let uri = req.uri().clone();
 
     if req.uri() == "/health_check" {
-        info!("responding to health check");
+        debug!("responding to health check");
         return req.body()
             .from_err()
             .and_then(move |_| {
