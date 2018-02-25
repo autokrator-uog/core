@@ -3,13 +3,6 @@ bus:register("account")
 local PREFIX = "acc-"
 local ID_KEY = "__account_id"
 
--- We need to keep track of account IDs. If there isn't a ID already stored in Redis,
--- then store 0.
-if not redis:get(ID_KEY) then
-    -- For now, we can only get/set tables from redis.
-    redis:set(ID_KEY, { id = 0 })
-end
-
 -- Accept or reject pending transactions.
 bus:add_event_listener("PendingTransaction", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " event")
@@ -73,9 +66,7 @@ end
 bus:add_event_listener("AccountCreationRequest", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " event")
     -- Get the next ID.
-    local last_id = redis:get(ID_KEY)
-    local next_id = last_id.id + 1
-    redis:set(ID_KEY, { id = next_id })
+    local next_id = redis:incr(ID_KEY);
 
     -- Create a new account and send the event out.
     create_account(next_id ,data.request_id, true)
@@ -114,9 +105,8 @@ end)
 
 function rebuild_id(previous_id)
     -- When rebuilding, make sure we keep the ID correct.
-    id = redis:get(ID_KEY)
-    if previous_event.id > id then
-        redis:set(ID_KEY, { id = previous_event.id })
+    if previous_id > id then
+        redis:incr(ID_KEY)
     end
 end
 

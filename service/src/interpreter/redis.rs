@@ -69,18 +69,10 @@ impl UserData for RedisInterface {
         methods.add_method("incr", |lua, this, key: String| {
             debug!("received incr call from lua");
 
-            info!("incrementing value for redis key: key'{}'", key);
-            let incr_amount = "1".to_string();
-            match this.redis.incr::<_, Option<String>, Option<String>>(
-                key, Some(incr_amount)).context(ErrorKind::RedisIncr) {
-                Ok(value) => {
-                    if let Some(value) = value {
-                        let parsed: Value = from_str(&value).to_lua_error()?;
-                        Ok(LuaValue::Table(json_to_lua(lua, parsed).to_lua_error()?))
-                    } else {
-                        Ok(value.to_lua(lua)?)
-                    }
-                },
+            info!("incrementing value for redis key: key='{}'", key);
+            match this.redis.incr::<_, _, Option<i64>>(
+                key, Some(1)).context(ErrorKind::RedisIncr) {
+                Ok(value) => Ok(value.to_lua(lua)?),
                 Err(e) => Err(e.to_lua_error()),
             }
         });

@@ -3,13 +3,6 @@ bus:register("transaction")
 local PREFIX = "trans-"
 local ID_KEY = "__transaction_id"
 
--- We need to keep track of transaction IDs. If there isn't a ID already stored in Redis,
--- then store 0.
-if not redis:get(ID_KEY) then
-    -- For now, we can only get/set tables from redis.
-    redis:set(ID_KEY, { id = 0 })
-end
-
 function handle_accepted_or_rejected(transaction_status)
     -- This returns the function that is expected as the argument to add_event_listener but
     -- with the correct status.
@@ -32,11 +25,11 @@ bus:add_event_listener("RejectedTransaction", handle_accepted_or_rejected("rejec
 
 function rebuild_id(previous_id)
     -- When rebuilding, make sure we keep the ID correct.
-    id = redis:get(ID_KEY)
-    if previous_event.id > id then
-        redis:set(ID_KEY, { id = previous_event.id })
+    if previous_id > id then
+        redis:incr(ID_KEY)
     end
 end
+
 
 bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " rebuild")
@@ -105,10 +98,7 @@ end)
 bus:add_route("/createTransaction", "POST", function(method, route, args, data)
     log:debug("received " .. route .. " request")
     -- Get the next ID.
-    local last_id = redis:get(ID_KEY)
-    log:debug(last_id)
-    local next_id = last_id.id + 1
-    redis:set(ID_KEY, { id = next_id })
+    local next_id = redis:incr(ID_KEY)
 
     -- While this should be exactly what is in `data` from the request, by constructing this
     -- ourselves, this will error if the wrong fields are provided and a internal server error
