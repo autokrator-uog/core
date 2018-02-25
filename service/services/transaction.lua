@@ -23,18 +23,11 @@ end
 bus:add_event_listener("AcceptedTransaction", handle_accepted_or_rejected("accepted"))
 bus:add_event_listener("RejectedTransaction", handle_accepted_or_rejected("rejected"))
 
-function rebuild_id(previous_id)
-    -- When rebuilding, make sure we keep the ID correct.
-    if previous_id > id then
-        redis:incr(ID_KEY)
-    end
-end
-
 
 bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " rebuild")
     -- Rebuild the ID if we can.
-    rebuild_id(data.id)
+    redis:incr(ID_KEY)
 
     local transaction = redis:get(key)
     -- If this transaction is not already in redis (it could be if we got the accepted or rejected
@@ -51,8 +44,6 @@ function rebuild_accepted_or_rejected(transaction_status)
     -- with the correct status.
     return function(event_type, key, correlation, data)
         log:debug("received " .. event_type .. " rebuild")
-        -- Rebuild the ID if we can.
-        rebuild_id(data.id)
 
         local transaction = redis:get(key)
         -- If this transaction is not already in redis.
