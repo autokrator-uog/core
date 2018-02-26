@@ -64,6 +64,8 @@ pub struct Bus {
     /// This field contains a mapping from each sequence key to the `SocketAddr` of the client
     /// that handles the events for that key. It is checked before the round robin state.
     pub sticky_consistency: HashMap<(String, ConsistencyKey), SocketAddr>,
+    /// This field contains all messages that are not yet sent out to a client type and should be.
+    pub pending_events: HashMap<String, Vec<Event>>,
     /// This field contains the topic that events should be sent to in Kafka.
     pub topic: String,
     /// This field contains the mapping of the sequence key to the last seen sequence value.
@@ -101,7 +103,7 @@ impl Bus {
                     None => {
                         info!("empty consistency map found in couchbase, creating new map");
                         HashMap::new()
-                    },   
+                    },
                 }
             },
             Err(e) => {
@@ -109,11 +111,12 @@ impl Bus {
                 HashMap::new()
             },
         };
-        
+
         Ok(Self {
             sessions: HashMap::new(),
             round_robin_state: HashMap::new(),
             sticky_consistency: HashMap::new(),
+            pending_events: HashMap::new(),
             topic: topic.to_owned(),
             consistency: consistency,
             producer: producer,

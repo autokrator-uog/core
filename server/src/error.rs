@@ -83,6 +83,9 @@ pub enum ErrorKind {
     RoundRobinEmptyQueue,
     #[fail(display = "No queue for client type in round robin state")]
     RoundRobinNoQueue,
+
+    #[fail(display = "Attempt to resend unacknowledged events with unregistered clients")]
+    UnacknowledgedEventResendWithoutClientType,
 }
 
 impl Error {

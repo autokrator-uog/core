@@ -58,10 +58,15 @@ impl Bus {
     fn handle_unawknowledged_events(&mut self, message: Disconnect) -> Result<(), Error> {
         debug!("processing unawknowledged events for disconnecting client: client='{}'",
                message.addr);
-        let unawknowledged_events = match self.sessions.get(&message.addr) {
-            Some(details) => details.unawknowledged_events.clone(),
+        let (client_type, unawknowledged_events) = match self.sessions.get(&message.addr) {
+            Some(details) => {
+                let client_type = details.client_type.clone().ok_or(
+                    Error::from(ErrorKind::UnacknowledgedEventResendWithoutClientType))?;
+                (client_type, details.unawknowledged_events.clone())
+            },
             None => return Err(Error::from(ErrorKind::SessionNotInHashMap)),
         };
+
 
         for unawknowledged_event in unawknowledged_events.iter() {
             debug!("re-propagating unawknowledged event: event=\n{}",
@@ -70,7 +75,7 @@ impl Bus {
             // matching with the expected incoming acks.
             let mut unawknowledged_event = unawknowledged_event.clone();
             unawknowledged_event.message_type = Some(String::from("event"));
-            self.propagate_event(unawknowledged_event);
+            self.propagate_event_to_client_type(&unawknowledged_event, client_type.clone());
         }
 
         Ok(())

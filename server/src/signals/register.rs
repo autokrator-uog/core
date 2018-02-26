@@ -103,6 +103,30 @@ impl Bus {
         }
     }
 
+    pub fn resend_events_for_client_type(&mut self, client_type: String) -> Result<(), Error> {
+        debug!("checking for events pending propagation for this client type");
+        let pending_events = match self.pending_events.entry(client_type.clone()) {
+            Entry::Occupied(mut entry) => {
+                debug!("client type in pending events - replacing with empty vector of events");
+                let events = entry.insert(Vec::new());
+                events
+            },
+            Entry::Vacant(entry) => {
+                debug!("client type not in pending events - found no pending events to send, \
+                       adding empty vec: client_type='{}'",
+                       client_type);
+                entry.insert(Vec::new());
+                return Ok(());
+            },
+        };
+
+        debug!("client type in pending events - resending any pending events");
+        for event in pending_events {
+            self.propagate_event_to_client_type(&event, client_type.clone());
+        }
+        Ok(())
+    }
+
     pub fn register(&mut self, message: Register) -> Result<(), Error> {
         let (addr, socket) = message.sender;
 
@@ -113,6 +137,12 @@ impl Bus {
 
         self.update_sessions_from_registration(socket, parsed.clone())?;
         self.update_round_robin_state_from_registration(socket, parsed.clone())?;
+
+        // We can resend events for this client type now that a client is connected and registered,
+        // if an event is in our global resend list then that means there were no clients
+        // connected when the service initially went down and so this is the first client of that
+        // type to come back.
+        self.resend_events_for_client_type(parsed.client_type.clone())?;
 
         let response = Registration {
             client_type: parsed.client_type.clone(),
