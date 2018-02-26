@@ -1,4 +1,5 @@
 use std::clone::Clone;
+use std::collections::hash_map::Entry;
 use std::net::SocketAddr;
 
 use actix::{Context, Handler, ResponseType};
@@ -83,32 +84,50 @@ impl Bus {
         }
     }
 
-    pub fn propagate_event(&mut self, event: Event) {
+    pub fn propagate_event_to_client_type(&mut self, event: &Event, client_type: String) {
         let event_type = event.event_type.clone();
+
+        // For each client type, we take the next available round robin selected client.
+        if let Ok((socket, details)) = self.next_client_for_sending(event.clone(),
+                                                                    &client_type) {
+            info!("client selection: client='{}'", socket);
+
+            // We need to check whether we should send to this client. In theory, this could
+            // cause a certain client type to miss an event entirely if this were to return
+            // false. However, given that all instances of a client type should be consistent
+            // in which event types they are interested in, in practice this shouldn't cause
+            // an issue.
+            if self.should_send_to_client(socket, details.clone(), event_type.clone()) {
+                info!("sending 'send to client' signal: client='{}'", socket);
+                details.address.send(SendToClient(event.clone()));
+            } else {
+                info!("not sending 'send to client' signal: client='{}'", socket);
+            }
+        } else {
+            warn!("round robin selection failed, saving for resend at later time");
+            match self.pending_events.entry(client_type.clone()) {
+                Entry::Occupied(mut entry) => {
+                    debug!("adding another pending evnet for client type: client_type='{}'",
+                           client_type);
+                    let mut existing_events = { entry.get().clone() };
+                    existing_events.push(event.clone());
+                    entry.insert(existing_events);
+                },
+                Entry::Vacant(entry) => {
+                    debug!("adding first pending event for client type: client_type='{}'",
+                           client_type);
+                    entry.insert(vec![event.clone()]);
+                },
+            }
+        }
+    }
+
+    pub fn propagate_event(&mut self, event: Event) {
         let types = self.round_robin_state.keys().cloned().collect::<Vec<_>>();
         debug!("checking client types: client_types='{:?}'", types);
         for client_type in types {
             info!("sending to client type: client_type='{}'", client_type);
-            // For each client type, we take the next available round robin selected client.
-            if let Ok((socket, details)) = self.next_client_for_sending(event.clone(),
-                                                                        &client_type) {
-                info!("client selection: client='{}'", socket);
-
-                // We need to check whether we should send to this client. In theory, this could
-                // cause a certain client type to miss an event entirely if this were to return
-                // false. However, given that all instances of a client type should be consistent
-                // in which event types they are interested in, in practice this shouldn't cause
-                // an issue.
-                if self.should_send_to_client(socket, details.clone(), event_type.clone()) {
-                    info!("sending 'send to client' signal: client='{}'", socket);
-                    details.address.send(SendToClient(event.clone()));
-                } else {
-                    info!("not sending 'send to client' signal: client='{}'", socket);
-                }
-
-            } else {
-                warn!("round robin selection failed");
-            }
+            self.propagate_event_to_client_type(&event, client_type);
         }
     }
 }
