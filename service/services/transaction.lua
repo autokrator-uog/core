@@ -23,7 +23,6 @@ end
 bus:add_event_listener("AcceptedTransaction", handle_accepted_or_rejected("accepted"))
 bus:add_event_listener("RejectedTransaction", handle_accepted_or_rejected("rejected"))
 
-
 bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " rebuild")
     -- Rebuild the ID if we can.

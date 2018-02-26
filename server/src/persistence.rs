@@ -36,6 +36,32 @@ fn create_gsi(bucket: &Bucket, name: &str) -> Result<(), Error> {
     Ok(())
 }
 
+fn create_primary_index(bucket: &Bucket) -> Result<(), Error> {
+    let query = format!("CREATE PRIMARY INDEX events_primary ON {} USING GSI", BUCKET_NAME);
+
+    let event_type_index_result = bucket.query_n1ql(query).wait();
+    for row in event_type_index_result {
+        match row {
+            Err(err) => {
+                warn!("failed to create primary index: error='{}'", err);
+                return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
+            }
+            Ok(N1qlResult::Row(_)) 
+                => return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned)),
+            Ok(N1qlResult::Meta(meta)) => {
+                if meta.status() == "success" {
+                    info!("creating global secondary index successful.");
+                } else {
+                    warn!("creating global secondary index unsuccessful.");
+                    return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
+                }
+            },
+        }
+    }
+
+    Ok(())
+}
+
 pub fn connect_to_bucket(couchbase_host: &str, bucket_name: &str) -> Result<Bucket, Error> {
     // This is simply a state object, it doesn't actually initiate connections.
     let mut cluster = Cluster::new(couchbase_host)?;
@@ -78,6 +104,11 @@ pub fn connect_to_bucket(couchbase_host: &str, bucket_name: &str) -> Result<Buck
         }
     };
 
+    let event_primary_index_result = create_primary_index(&bucket);
+    if event_primary_index_result.is_err() {
+        info!("primary index creation failed, may already exist: index='event_primary'");
+    }
+    
     // Create Global Secondary Index for event_type field - required for querying on it.
     let event_type_gsi_result = create_gsi(&bucket, "event_type");
     if event_type_gsi_result.is_err() {

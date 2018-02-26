@@ -6,14 +6,24 @@ local ID_KEY = "__account_id"
 -- Accept or reject pending transactions.
 bus:add_event_listener("PendingTransaction", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " event")
-    local from_acc_key = PREFIX .. data.fromAccountId
     local to_acc_key = PREFIX .. data.toAccountId
-    local account = redis:get(from_acc_key)
-    if account then
+    local to_account = redis:get(to_acc_key)
+    if not to_account then
+        log:warn("received " .. event_type .. " for to account that is not in redis")
+    end
+
+    local from_acc_key = PREFIX .. data.fromAccountId
+    local from_account = redis:get(from_acc_key)
+    if from_account then
         -- If the user can afford the transaction then go for it.
-        if account.balance - data.amount > 0 then
+        if from_account.balance - data.amount > 0 then
             -- If we accept a transaction, send a accepted transaction event out.
-            bus:send("AcceptedTransaction", key, true, correlation, { transaction_id = data.id })
+            bus:send("AcceptedTransaction", key, true, correlation, {
+                transaction_id = data.id,
+                from_account_id = data.fromAccountId,
+                to_account_id = data.toAccountId,
+                amount = data.amount,
+            })
 
             -- Also send the debit and credit. Ensure that these are ordered.
             bus:send("ConfirmedCredit", to_acc_key, false, correlation, {
@@ -32,7 +42,7 @@ bus:add_event_listener("PendingTransaction", function(event_type, key, correlati
             bus:send("RejectedTransaction", key, true, correlation, { transaction_id = data.id })
         end
     else
-        log:warn("received " .. event_type .. " that is not in redis")
+        log:warn("received " .. event_type .. " for from account that is not in redis")
     end
 end)
 

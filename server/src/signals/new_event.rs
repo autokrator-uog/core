@@ -100,6 +100,7 @@ impl Bus {
         for raw_event in parsed.events.iter() {
             let key = raw_event.consistency.key.clone();
 
+            debug!("checking consistency: raw='{:?}'", raw_event.consistency.value);
             let value = match raw_event.consistency.value.clone() {
                 ConsistencyValue::Explicit(v) => v,
                 ConsistencyValue::Implicit => {
@@ -110,6 +111,7 @@ impl Bus {
                     }
                 },
             };
+            debug!("found consistency: value='{}'", value);
             let value = ConsistencyValue::Explicit(value);
 
             let consistency = Consistency { key: key, value: value.clone() };
@@ -128,8 +130,12 @@ impl Bus {
 
             let key = raw_event.consistency.key.clone();
             let success = if let Some(&ConsistencyValue::Explicit(x)) = self.consistency.get(&key) {
+                debug!("comparing consistency: expect='{:?}' found='{:?}'",
+                       value, ConsistencyValue::Explicit(x + 1));
                 value == ConsistencyValue::Explicit(x + 1)
             } else {
+                debug!("comparing consistency: expect='{:?}' found='{:?}'",
+                       value, ConsistencyValue::Explicit(0));
                 value == ConsistencyValue::Explicit(0)
             };
 
@@ -138,7 +144,7 @@ impl Bus {
                 self.consistency.insert(key, value.clone());
                 if let Err(e) = self.persist_consistency_to_couchbase() {
                     warn!("failed to save consistency to couchbase: error='{:?}'", e);
-                } 
+                }
                 status = "success";
 
                 info!("sending event to kafka: sequence_key='{}', sequence_value='{}'",
