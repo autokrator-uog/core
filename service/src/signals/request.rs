@@ -29,11 +29,11 @@ impl Interpreter {
         let method = String::from(req.method.as_str());
 
         let content = if let Some(content) = req.content {
-            info!("handling request from http: uri='{}' method='{}' content=\n{}",
+            debug!("handling request from http: uri='{}' method='{}' content=\n{}",
                   uri, method, to_string_pretty(&content)?);
             Some(json_to_lua(&self.lua, content).context(ErrorKind::ParseHttpContent)?)
         } else {
-            info!("handling request from http: uri='{}' method='{}'", uri, method);
+            debug!("handling request from http: uri='{}' method='{}'", uri, method);
             None
         };
 

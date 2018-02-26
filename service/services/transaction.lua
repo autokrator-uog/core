@@ -33,8 +33,8 @@ bus:add_event_listener("RejectedTransaction", handle_accepted_or_rejected("rejec
 function rebuild_id(previous_id)
     -- When rebuilding, make sure we keep the ID correct.
     id = redis:get(ID_KEY)
-    if previous_event.id > id then
-        redis:set(ID_KEY, { id = previous_event.id })
+    if previous_id > id then
+        redis:set(ID_KEY, { id = previous_id })
     end
 end
 

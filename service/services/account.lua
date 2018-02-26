@@ -25,7 +25,12 @@ bus:add_event_listener("PendingTransaction", function(event_type, key, correlati
         -- If the user can afford the transaction then go for it.
         if from_account.balance - data.amount > 0 then
             -- If we accept a transaction, send a accepted transaction event out.
-            bus:send("AcceptedTransaction", key, true, correlation, { transaction_id = data.id })
+            bus:send("AcceptedTransaction", key, true, correlation, {
+                transaction_id = data.id,
+                from_account_id = data.fromAccountId,
+                to_account_id = data.toAccountId,
+                amount = data.amount,
+            })
 
             -- Also send the debit and credit. Ensure that these are ordered.
             bus:send("ConfirmedCredit", to_acc_key, false, correlation, {
@@ -120,8 +125,8 @@ end)
 function rebuild_id(previous_id)
     -- When rebuilding, make sure we keep the ID correct.
     id = redis:get(ID_KEY)
-    if previous_event.id > id then
-        redis:set(ID_KEY, { id = previous_event.id })
+    if previous_id > id then
+        redis:set(ID_KEY, { id = previous_id })
     end
 end
 
