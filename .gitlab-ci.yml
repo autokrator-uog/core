@@ -1,54 +1,59 @@
 variables:
   REGISTRY: sed-team-project:4567
-  REG_EVENT_BUS: sed-team-project:4567/sed-dev-group/event-bus/bus
-  REG_SERVICE: sed-team-project:4567/sed-dev-group/event-bus/service
-  EVENT_BUS_TAG_THIS_BUILD: $REG_EVENT_BUS:$CI_COMMIT_REF_NAME
-  SERVICE_TAG_THIS_BUILD: $REG_SERVICE:$CI_COMMIT_REF_NAME
+  REG_EVENT_BUS: $REGISTRY/sed-dev-group/event-bus/bus
+  REG_SERVICE: $REGISTRY/sed-dev-group/event-bus/service
 
 stages:
   - build
   - test
   - publish
 
+.dependencies: &dependencies |
+  apt-get update
+  apt-get install -y libev4 libssl1.0.0 cmake build-essential
+  wget https://github.com/couchbase/libcouchbase/releases/download/2.8.1/libcouchbase-2.8.1_jessie_amd64.tar
+  tar xf libcouchbase-2.8.1_jessie_amd64.tar
+  dpkg -i libcouchbase-2.8.1_jessie_amd64/*.deb
+
 build_service:
-  image: docker:latest
+  image: rust:jessie
   stage: build
   script:
-    - docker build -t $SERVICE_TAG_THIS_BUILD -f Dockerfile.service .
-    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
-    - docker push $SERVICE_TAG_THIS_BUILD
+    - *dependencies
+    - cd service
+    - cargo build
 
 build_event_bus:
   image: docker:latest
   stage: build
   script:
-    - docker build -t $EVENT_BUS_TAG_THIS_BUILD -f Dockerfile.server .
-    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
-    - docker push $EVENT_BUS_TAG_THIS_BUILD
+    - *dependencies
+    - cd server
+    - cargo build
 
 test_service:
   image: docker:latest
   stage: test
   script:
-    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
-    - docker pull $SERVICE_TAG_THIS_BUILD
-    - docker run -t $SERVICE_TAG_THIS_BUILD cargo test
+    - *dependencies
+    - cd service
+    - cargo test
 
 test_event_bus:
   image: docker:latest
   stage: test
   script:
-    - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
-    - docker pull $EVENT_BUS_TAG_THIS_BUILD
-    - docker run -t $EVENT_BUS_TAG_THIS_BUILD cargo test
+    - *dependencies
+    - cd server
+    - cargo test
 
 prod_tag_service:
   image: docker:latest
   stage: publish
   script:
+    - docker build -t $REG_SERVICE:master -t $REG_SERVICE:latest -f Dockerfile.service .
     - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
-    - docker pull $SERVICE_TAG_THIS_BUILD
-    - docker tag $SERVICE_TAG_THIS_BUILD $REG_SERVICE:latest
+    - docker push $REG_SERVICE:master
     - docker push $REG_SERVICE:latest
   only:
     - master
@@ -57,9 +62,9 @@ prod_tag_event_bus:
   image: docker:latest
   stage: publish
   script:
+    - docker build -t $REG_SERVER:master -t $REG_SERVER:latest -f Dockerfile.server .
     - echo "$CI_BUILD_TOKEN" | docker login -u gitlab-ci-token --password-stdin $REGISTRY
-    - docker pull $EVENT_BUS_TAG_THIS_BUILD
-    - docker tag $EVENT_BUS_TAG_THIS_BUILD $REG_EVENT_BUS:latest
-    - docker push $REG_EVENT_BUS:latest
+    - docker push $REG_SERVER:master
+    - docker push $REG_SERVER:latest
   only:
     - master
