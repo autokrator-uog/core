@@ -46,7 +46,7 @@ fn create_primary_index(bucket: &Bucket) -> Result<(), Error> {
                 warn!("failed to create primary index: error='{}'", err);
                 return Err(Error::from(ErrorKind::CouchbaseCreateGSIFailed))
             }
-            Ok(N1qlResult::Row(_)) 
+            Ok(N1qlResult::Row(_))
                 => return Err(Error::from(ErrorKind::CouchbaseUnexpectedResultReturned)),
             Ok(N1qlResult::Meta(meta)) => {
                 if meta.status() == "success" {
@@ -108,7 +108,7 @@ pub fn connect_to_bucket(couchbase_host: &str, bucket_name: &str) -> Result<Buck
     if event_primary_index_result.is_err() {
         info!("primary index creation failed, may already exist: index='event_primary'");
     }
-    
+
     // Create Global Secondary Index for event_type field - required for querying on it.
     let event_type_gsi_result = create_gsi(&bucket, "event_type");
     if event_type_gsi_result.is_err() {

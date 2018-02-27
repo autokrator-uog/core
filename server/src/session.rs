@@ -72,17 +72,17 @@ impl Session {
 
         match message_type {
             "query" => {
-                info!("sending query message to bus");
+                debug!("sending query message to bus");
                 let query = signals::Query {
                     message: contents,
                     sender: ctx.address(),
                     bus: self.bus.clone(),
                 };
                 self.bus.send(query);
-                info!("sent query message to bus");
+                debug!("sent query message to bus");
             },
             "new" => {
-                info!("sending new event message to bus");
+                debug!("sending new event message to bus");
                 let new_event = signals::NewEvent {
                     message: contents,
                     sender: (ctx.address(), self.addr),
@@ -90,17 +90,17 @@ impl Session {
                     session_id: self.session_id,
                 };
                 self.bus.send(new_event);
-                info!("sent new event message to bus");
+                debug!("sent new event message to bus");
             },
             "register" => {
-                info!("sending register message to bus");
+                debug!("sending register message to bus");
                 let register = signals::Register {
                     message: contents,
                     sender: (ctx.address(), self.addr),
                     bus: self.bus.clone(),
                 };
                 self.bus.send(register);
-                info!("sent register message to bus");
+                debug!("sent register message to bus");
             },
             "ack" => {
                 debug!("sending acknowledgement message to bus");
