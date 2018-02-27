@@ -129,7 +129,12 @@ impl Handler<Event> for Interpreter {
     fn handle(&mut self, event: Event, _: &mut Context<Self>) {
         info!("received event signal from client");
         if let Err(e) = self.handle_event(event) {
-            error!("processing event: error='{}'", e);
+            match &e.downcast::<ErrorKind>() {
+                &Ok(ErrorKind::MissingEventHandlerRegistryValue) => warn!("no handler for event"),
+                // Not able to collapse these two conditions into a single condition.
+                &Ok(ref e) => error!("processing event: error='{}'", e),
+                &Err(ref e) => error!("processing event: error='{}'", e),
+            }
         }
     }
 }

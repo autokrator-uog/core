@@ -63,7 +63,14 @@ impl Handler<Rebuild> for Interpreter {
     fn handle(&mut self, event: Rebuild, _: &mut Context<Self>) {
         info!("received rebuild signal from client");
         if let Err(e) = self.handle_rebuild(event) {
-            error!("processing rebuild: error='{}'", e);
+            match &e.downcast::<ErrorKind>() {
+                &Ok(ErrorKind::MissingRebuildHandlerRegistryValue) => {
+                    warn!("no handler for rebuild");
+                },
+                // Not able to collapse these two conditions into a single condition.
+                &Ok(ref e) => error!("processing rebuild: error='{}'", e),
+                &Err(ref e) => error!("processing rebuild: error='{}'", e),
+            }
         }
     }
 }
