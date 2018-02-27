@@ -1,6 +1,6 @@
 variables:
   REGISTRY: sed-team-project:4567
-  REG_EVENT_BUS: $REGISTRY/sed-dev-group/event-bus/bus
+  REG_SERVER: $REGISTRY/sed-dev-group/event-bus/bus
   REG_SERVICE: $REGISTRY/sed-dev-group/event-bus/service
 
 stages:
