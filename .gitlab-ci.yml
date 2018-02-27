@@ -24,7 +24,7 @@ build_service:
     - cargo build
 
 build_event_bus:
-  image: docker:latest
+  image: rust:jessie
   stage: build
   script:
     - *dependencies
@@ -32,7 +32,7 @@ build_event_bus:
     - cargo build
 
 test_service:
-  image: docker:latest
+  image: rust:jessie
   stage: test
   script:
     - *dependencies
@@ -40,7 +40,7 @@ test_service:
     - cargo test
 
 test_event_bus:
-  image: docker:latest
+  image: rust:jessie
   stage: test
   script:
     - *dependencies
