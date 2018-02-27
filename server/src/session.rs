@@ -103,13 +103,13 @@ impl Session {
                 info!("sent register message to bus");
             },
             "ack" => {
-                info!("sending awknowledgement message to bus");
-                let awknowledgement = signals::Awknowledgement {
+                debug!("sending acknowledgement message to bus");
+                let acknowledgement = signals::Acknowledgement {
                     message: contents,
                     addr: self.addr,
                 };
-                self.bus.send(awknowledgement);
-                info!("sent awknowledgement message to bus");
+                self.bus.send(acknowledgement);
+                debug!("sent acknowledgement message to bus");
             },
             _ => {
                 return Err(Error::from(ErrorKind::InvalidWebsocketMessageType));

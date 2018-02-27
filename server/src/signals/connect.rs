@@ -26,7 +26,7 @@ impl Handler<Connect> for Bus {
             registered_types: RegisteredTypes::All,
             client_type: None,
             consistency_keys: HashSet::new(),
-            unawknowledged_events: HashSet::new(),
+            unacknowledged_events: HashSet::new(),
         };
 
         if let Some(_) = self.sessions.insert(message.addr, details) {
