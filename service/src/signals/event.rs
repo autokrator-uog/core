@@ -70,11 +70,23 @@ impl Interpreter {
             ErrorKind::RedisPersist).map_err(Error::from)
     }
 
+    fn respond_with_acknowledgement(&self, mut acknowledgement: EventSchema) -> Result<(), Error> {
+        // Respond with an acknowledgement.
+        acknowledgement.message_type = Some(String::from("ack"));
+        if let Some(ref client) = self.client {
+            info!("responding with acknowledgement");
+            client.send(SendMessage(acknowledgement));
+            Ok(())
+        } else {
+            Err(Error::from(ErrorKind::ClientNotLinkedToInterpreter))
+        }
+    }
+
     fn handle_event(&mut self, event: Event) -> Result<(), Error> {
         let parsed: EventSchema = from_str(&event.message).context(ErrorKind::ParseEventMessage)?;
         debug!("received event: message=\n{}", to_string_pretty(&parsed)?);
         // We'll send this if handler succeeds.
-        let mut awknowledgement = parsed.clone();
+        let acknowledgement = parsed.clone();
 
         debug!("saving timestamp for query");
         self.save_timestamp_for_query(&parsed)?;
@@ -100,18 +112,13 @@ impl Interpreter {
                     return Err(Error::from(e.context(ErrorKind::FailedEventHandler)));
                 }
 
-                // Respond with an awknowledgement.
-                awknowledgement.message_type = Some(String::from("ack"));
-                if let Some(ref client) = self.client {
-                    info!("responding with awknowledgement");
-                    client.send(SendMessage(awknowledgement));
-                } else {
-                    return Err(Error::from(ErrorKind::ClientNotLinkedToInterpreter));
-                }
-
+                self.respond_with_acknowledgement(acknowledgement)?;
                 Ok(())
             },
-            None => return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue)),
+            None => {
+                self.respond_with_acknowledgement(acknowledgement)?;
+                return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue));
+            },
         }
     }
 }
