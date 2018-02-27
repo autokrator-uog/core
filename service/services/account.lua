@@ -3,13 +3,6 @@ bus:register("account")
 local PREFIX = "acc-"
 local ID_KEY = "__account_id"
 
--- We need to keep track of account IDs. If there isn't a ID already stored in Redis,
--- then store 0.
-if not redis:get(ID_KEY) then
-    -- For now, we can only get/set tables from redis.
-    redis:set(ID_KEY, { id = 0 })
-end
-
 -- Accept or reject pending transactions.
 bus:add_event_listener("PendingTransaction", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " event")
@@ -83,9 +76,7 @@ end
 bus:add_event_listener("AccountCreationRequest", function(event_type, key, correlation, data)
     log:debug("received " .. event_type .. " event")
     -- Get the next ID.
-    local last_id = redis:get(ID_KEY)
-    local next_id = last_id.id + 1
-    redis:set(ID_KEY, { id = next_id })
+    local next_id = redis:incr(ID_KEY);
 
     -- Create a new account and send the event out.
     create_account(next_id ,data.request_id, true)
@@ -122,31 +113,18 @@ bus:add_event_listener("ConfirmedDebit", function(event_type, key, correlation, 
     handle_balance_change(event_type, key, correlation, data)
 end)
 
-function rebuild_id(previous_id)
-    -- When rebuilding, make sure we keep the ID correct.
-    id = redis:get(ID_KEY)
-    if previous_id > id then
-        redis:set(ID_KEY, { id = previous_id })
-    end
-end
-
 bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data)
-    -- Rebuild the ID if we can.
-    rebuild_id(data.acc_id)
+    redis:incr(ID_KEY)
     -- Create a new account with the same request ID but without the event being created.
     create_account(data.acc_id, data.request_id, false)
 end)
 
 bus:add_rebuild_handler("ConfirmedCredit", function(event_type, key, correlation, data)
-    -- Rebuild the ID if we can.
-    rebuild_id(data.id)
     -- Use the same balance addition function as before - it works either way as it doesn't produce
     -- any events.
     handle_balance_change(event_type, key, correlation, data)
 end)
 bus:add_rebuild_handler("ConfirmedDebit", function(event_type, key, correlation, data)
-    -- Rebuild the ID if we can.
-    rebuild_id(data.id)
     -- The ConfirmedDebit event has a positive value so negate this so that the same function
     -- can handle both credit and debit balance changes.
     data.amount = -data.amount

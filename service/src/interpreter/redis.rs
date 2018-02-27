@@ -65,5 +65,16 @@ impl UserData for RedisInterface {
                 Err(e) => Err(e.to_lua_error()),
             }
         });
+
+        methods.add_method("incr", |lua, this, key: String| {
+            debug!("received incr call from lua");
+
+            info!("incrementing value for redis key: key='{}'", key);
+            match this.redis.incr::<_, _, Option<i64>>(
+                key, Some(1)).context(ErrorKind::RedisIncr) {
+                Ok(value) => Ok(value.to_lua(lua)?),
+                Err(e) => Err(e.to_lua_error()),
+            }
+        });
     }
 }

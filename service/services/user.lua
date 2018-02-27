@@ -2,20 +2,7 @@ bus:register("user")
 local USER_PREFIX = "user-"
 local ACCOUNT_PREFIX = "creation-"
 local ID_KEY = "__request_id"
--- We need to keep track of account IDs. If there isn't a ID already stored in Redis,
--- then store 0.
-if not redis:get(ID_KEY) then
-    -- For now, we can only get/set tables from redis.
-    redis:set(ID_KEY, { id = 0 })
-end
 
-function rebuild_id(previous_id)
-    -- When rebuilding, make sure we keep the ID correct.
-    id = redis:get(ID_KEY)
-    if previous_id > id then
-        redis:set(ID_KEY, { id = previous_id })
-    end
-end
 -- Listen for when an account is created, add it to its corresponding user.
 bus:add_event_listener("AccountCreated", function(event_type, key, correlation, data)
     log:debug("received account created event")
@@ -55,9 +42,6 @@ bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, da
 end)
 
 bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data)
-    -- Rebuild request id if possible.
-    rebuild_id(data.request_id)
-
     log:debug("received account created event")
     local request_key = ACCOUNT_PREFIX .. data.request_id
     local account = redis:get(request_key)
@@ -83,7 +67,7 @@ bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation,
 end)
 
 bus:add_rebuild_handler("AccountCreationRequest", function(event_type, key, correlation, data)
-    rebuild_id(request_id)
+    redis:incr(ID_KEY)
 
     local account = redis:get(key)
     -- If account exists in redis, we have already received AccountCreated, so ignore.
@@ -138,9 +122,7 @@ end)
 
 bus:add_route("/user/{username}", "POST", function(method, route, args, data)
     log:debug("recieved create account request")
-    local last_id = redis:get(ID_KEY)
-    local next_id = last_id.id + 1
-    redis:set(ID_KEY, { id = next_id })
+    local next_id = redis:incr(ID_KEY)
 
     local key = ACCOUNT_PREFIX .. next_id
 

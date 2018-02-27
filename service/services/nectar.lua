@@ -1,14 +1,6 @@
 bus:register("nectar")
 
 local PREFIX = "nectar-"
-local ID_KEY = "__nectar_id"
-
--- We need to keep track of nectar account IDs. If there isn't a ID already stored in Redis,
--- then store 0.
-if not redis:get(ID_KEY) then
-    -- For now, we can only get/set tables from redis.
-    redis:set(ID_KEY, { id = 0 })
-end
 
 -- When £100 or more is spent, we debit the nectar balance by
 -- 10% of this amount.
@@ -71,14 +63,7 @@ bus:add_event_listener("NectarCredit", function(event_type, key, correlation, da
     else
         log:info("received " .. event_type .. " and creating nectar account")
         -- If the account doesn't exist, create it with the new balance.
-        local last_id = redis:get(ID_KEY)
-        local next_id = last_id.id + 1
-        redis:set(ID_KEY, { id = next_id })
-
-        redis:set(key, {
-            balance = data.amount,
-            id = next_id,
-        })
+        redis:set(key, { balance = data.amount })
     end
 end)
 
@@ -106,33 +91,15 @@ function handle_balance_change(event_type, key, correlation, data)
         -- Save these changes.
         redis:set(key, account)
     else
-        -- Get the next ID.
-        local last_id = redis:get(ID_KEY)
-        local next_id = last_id.id + 1
-        redis:set(ID_KEY, { id = next_id })
-
         -- Create an account with this amount.
-        redis:set(key, {
-            balance = data.amount,
-            id = next_id,
-        })
-    end
-end
-
-function rebuild_id(previous_id)
-    -- When rebuilding, make sure we keep the ID correct.
-    id = redis:get(ID_KEY)
-    if previous_event.id > id then
-        redis:set(ID_KEY, { id = previous_event.id })
+        redis:set(key, { balance = data.amount })
     end
 end
 
 bus:add_rebuild_handler("NectarDebit", function(event_type, key, correlation, data)
-    rebuild_id(data.id)
     handle_balance_change(event_type, key, correlation, data)
 end)
 bus:add_rebuild_handler("NectarCredit", function(event_type, key, correlation, data)
-    rebuild_id(data.id)
 
     -- The NectarDebit event has a positive value so negate this so that the same function
     -- can handle both credit and debit balance changes.
