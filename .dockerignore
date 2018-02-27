@@ -1,2 +1,7 @@
-service/target/
-server/target/
+target/*
+*/target*
+.git/*
+tags
+Session.vim
+Dockerfile.*
+.dockerignore
