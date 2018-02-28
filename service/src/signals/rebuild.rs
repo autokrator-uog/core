@@ -43,13 +43,15 @@ impl Interpreter {
                     let data = json_to_lua(&self.lua, event.data).context(
                         ErrorKind::ParseEventMessage)?;
                     let args = (event.event_type, event.consistency.key, event.correlation_id,
-                                data);
+                                data, event.timestamp_raw);
                     if let Err(e) = function.call::<_, ()>(args) {
                         error!("failure running rebuild hander: \n\n{}\n", e);
                         return Err(Error::from(e.context(ErrorKind::FailedRebuildHandler)));
                     }
                 },
-                None => return Err(Error::from(ErrorKind::MissingRebuildHandlerRegistryValue)),
+                None => {
+                    warn!("no handler for rebuild");
+                },
             }
         }
 

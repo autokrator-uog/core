@@ -106,7 +106,7 @@ impl Interpreter {
                 let data = json_to_lua(&self.lua, parsed.data).context(
                     ErrorKind::ParseEventMessage)?;
                 let args = (parsed.event_type, parsed.consistency.key, parsed.correlation_id,
-                            data);
+                            data, parsed.timestamp_raw);
                 if let Err(e) = function.call::<_, ()>(args) {
                     error!("failure running event hander: \n\n{}\n", e);
                     return Err(Error::from(e.context(ErrorKind::FailedEventHandler)));

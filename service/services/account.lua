@@ -4,7 +4,7 @@ local PREFIX = "acc-"
 local ID_KEY = "__account_id"
 
 -- Accept or reject pending transactions.
-bus:add_event_listener("PendingTransaction", function(event_type, key, correlation, data)
+bus:add_event_listener("PendingTransaction", function(event_type, key, correlation, data, ts)
     log:debug("received " .. event_type .. " event")
     local to_acc_key = PREFIX .. data.toAccountId
     local to_account = redis:get(to_acc_key)
@@ -57,7 +57,6 @@ function create_account(id, request_id, send_event)
         id = id,
         balance = 0,
         statements = {},
-        statement_item_id = 0,
         request_id = request_id
     }
 
@@ -73,7 +72,7 @@ function create_account(id, request_id, send_event)
 end
 
 -- Handle request for an account creation.
-bus:add_event_listener("AccountCreationRequest", function(event_type, key, correlation, data)
+bus:add_event_listener("AccountCreationRequest", function(event_type, key, correlation, data, ts)
     log:debug("received " .. event_type .. " event")
     -- Get the next ID.
     local next_id = redis:incr(ID_KEY);
@@ -82,7 +81,7 @@ bus:add_event_listener("AccountCreationRequest", function(event_type, key, corre
     create_account(next_id ,data.request_id, true)
 end)
 
-function handle_balance_change(event_type, key, correlation, data)
+function handle_balance_change(event_type, key, correlation, data, ts)
     log:debug("received " .. event_type .. " event")
     local account = redis:get(key)
     if account then
@@ -91,12 +90,10 @@ function handle_balance_change(event_type, key, correlation, data)
         account.balance = account.balance + data.amount
         -- Insert a new statement that reflects this change.
         table.insert(account.statements, {
-            item = account.statement_item_id + 1,
+            timestamp = ts,
             amount = data.amount,
             note = data.note
         })
-        -- Increment this account's statement item id.
-        account.statement_item_id = account.statement_item_id + 1
         -- Save these changes.
         redis:set(key, account)
     else
@@ -106,31 +103,31 @@ end
 
 -- Adjust the balance when a confirmed debit or credit happens.
 bus:add_event_listener("ConfirmedCredit", handle_balance_change)
-bus:add_event_listener("ConfirmedDebit", function(event_type, key, correlation, data)
+bus:add_event_listener("ConfirmedDebit", function(event_type, key, correlation, data, ts)
     -- The ConfirmedDebit event has a positive value so negate this so that the same function
     -- can handle both credit and debit balance changes.
     data.amount = -data.amount
-    handle_balance_change(event_type, key, correlation, data)
+    handle_balance_change(event_type, key, correlation, data, ts)
 end)
 
-bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data, ts)
     redis:incr(ID_KEY)
     -- Create a new account with the same request ID but without the event being created.
     create_account(data.acc_id, data.request_id, false)
 end)
 
-bus:add_rebuild_handler("ConfirmedCredit", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("ConfirmedCredit", function(event_type, key, correlation, data, ts)
     -- Use the same balance addition function as before - it works either way as it doesn't produce
     -- any events.
-    handle_balance_change(event_type, key, correlation, data)
+    handle_balance_change(event_type, key, correlation, data, ts)
 end)
-bus:add_rebuild_handler("ConfirmedDebit", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("ConfirmedDebit", function(event_type, key, correlation, data, ts)
     -- The ConfirmedDebit event has a positive value so negate this so that the same function
     -- can handle both credit and debit balance changes.
     data.amount = -data.amount
     -- Use the same balance addition function as before - it works either way as it doesn't produce
     -- any events.
-    handle_balance_change(event_type, key, correlation, data)
+    handle_balance_change(event_type, key, correlation, data, ts)
 end)
 
 function handle_receipt(status, event_type, key, correlation, data)

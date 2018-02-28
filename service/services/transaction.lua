@@ -6,7 +6,7 @@ local ID_KEY = "__transaction_id"
 function handle_accepted_or_rejected(transaction_status)
     -- This returns the function that is expected as the argument to add_event_listener but
     -- with the correct status.
-    return function(event_type, key, correlation, data)
+    return function(event_type, key, correlation, data, ts)
         log:debug("received " .. event_type .. " event")
         local transaction = redis:get(key)
         -- Update the status of the transaction when we see it was accepted.
@@ -23,7 +23,7 @@ end
 bus:add_event_listener("AcceptedTransaction", handle_accepted_or_rejected("accepted"))
 bus:add_event_listener("RejectedTransaction", handle_accepted_or_rejected("rejected"))
 
-bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("PendingTransaction", function(event_type, key, correlation, data, ts)
     log:debug("received " .. event_type .. " rebuild")
     -- Rebuild the ID if we can.
     redis:incr(ID_KEY)
@@ -41,7 +41,7 @@ end)
 function rebuild_accepted_or_rejected(transaction_status)
     -- This returns the function that is expected as the argument to add_rebuild_handler but
     -- with the correct status.
-    return function(event_type, key, correlation, data)
+    return function(event_type, key, correlation, data, ts)
         log:debug("received " .. event_type .. " rebuild")
 
         local transaction = redis:get(key)

@@ -12,7 +12,7 @@ local GET_AMOUNT = 0.1
 local USE_THRESHOLD = 25.0
 local USE_AMOUNT = 0.1
 
-bus:add_event_listener("AcceptedTransaction", function(event_type, key, correlation, data)
+bus:add_event_listener("AcceptedTransaction", function(event_type, key, correlation, data, ts)
     local nectar_key = PREFIX .. data.from_account_id
     local account = redis:get(nectar_key)
 
@@ -40,7 +40,7 @@ bus:add_event_listener("AcceptedTransaction", function(event_type, key, correlat
     end
 end)
 
-bus:add_event_listener("NectarDebit", function(event_type, key, correlation, data)
+bus:add_event_listener("NectarDebit", function(event_type, key, correlation, data, ts)
     local details = redis:get(key)
     if details then
         log:info("received " .. event_type .. " and updating nectar account")
@@ -53,7 +53,7 @@ bus:add_event_listener("NectarDebit", function(event_type, key, correlation, dat
     end
 end)
 
-bus:add_event_listener("NectarCredit", function(event_type, key, correlation, data)
+bus:add_event_listener("NectarCredit", function(event_type, key, correlation, data, ts)
     local details = redis:get(key)
     if details then
         log:info("received " .. event_type .. " and updating nectar account")
@@ -80,7 +80,7 @@ bus:add_receipt_listener("NectarDebit", handle_receipt)
 bus:add_receipt_listener("NectarCredit", handle_receipt)
 bus:add_receipt_listener("ConfirmedCredit", handle_receipt)
 
-function handle_balance_change(event_type, key, correlation, data)
+function handle_balance_change(event_type, key, correlation, data, ts)
     log:debug("received " .. event_type .. " rebuild")
     local account = redis:get(key)
     if account then
@@ -96,15 +96,15 @@ function handle_balance_change(event_type, key, correlation, data)
     end
 end
 
-bus:add_rebuild_handler("NectarDebit", function(event_type, key, correlation, data)
-    handle_balance_change(event_type, key, correlation, data)
+bus:add_rebuild_handler("NectarDebit", function(event_type, key, correlation, data, ts)
+    handle_balance_change(event_type, key, correlation, data, ts)
 end)
-bus:add_rebuild_handler("NectarCredit", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("NectarCredit", function(event_type, key, correlation, data, ts)
 
     -- The NectarDebit event has a positive value so negate this so that the same function
     -- can handle both credit and debit balance changes.
     data.amount = -data.amount
-    handle_balance_change(event_type, key, correlation, data)
+    handle_balance_change(event_type, key, correlation, data, ts)
 end)
 
 bus:add_route("/balance/{id}", "GET", function(method, route, args, data)
