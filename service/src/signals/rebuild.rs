@@ -1,5 +1,5 @@
 use actix::{Context, Handler, ResponseType};
-use common::schemas::Event;
+use common::schemas::Rebuild as RebuildSchema;
 use failure::{Error, Fail, ResultExt};
 use rlua::Function;
 use serde_json::{from_str, to_string_pretty};
@@ -20,37 +20,42 @@ impl ResponseType for Rebuild {
 
 impl Interpreter {
     fn handle_rebuild(&mut self, event: Rebuild) -> Result<(), Error> {
-        let parsed: Event = from_str(&event.message).context(ErrorKind::ParseEventMessage)?;
+        let parsed: RebuildSchema = from_str(&event.message).context(
+            ErrorKind::ParseEventMessage)?;
         debug!("received rebuild event: message=\n{}", to_string_pretty(&parsed)?);
 
-        debug!("saving timestamp for query");
-        self.save_timestamp_for_query(&parsed)?;
+        for event in parsed.events {
+            debug!("saving timestamp for query");
+            self.save_timestamp_for_query(&event)?;
 
-        debug!("checking consistency updates from event");
-        self.increment_consistency_if_required(parsed.consistency.key.clone(),
-                                               parsed.consistency.value)?;
+            debug!("checking consistency updates from event");
+            self.increment_consistency_if_required(event.consistency.key.clone(),
+                                                   event.consistency.value)?;
 
-        let globals = self.lua.globals();
-        let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
-        match bus.rebuild_handlers.get(&parsed.event_type.clone()) {
-            Some(key) => {
-                let function: Function = self.lua.named_registry_value(key).context(
-                    ErrorKind::MissingRebuildHandlerRegistryValue)?;
+            let globals = self.lua.globals();
+            let bus: Bus = globals.get::<_, Bus>("bus").context(ErrorKind::MissingBusUserData)?;
+            match bus.rebuild_handlers.get(&event.event_type.clone()) {
+                Some(key) => {
+                    let function: Function = self.lua.named_registry_value(key).context(
+                        ErrorKind::MissingRebuildHandlerRegistryValue)?;
 
-                debug!("calling event handler");
-                let data = json_to_lua(&self.lua, parsed.data).context(
-                    ErrorKind::ParseEventMessage)?;
-                let args = (parsed.event_type, parsed.consistency.key, parsed.correlation_id,
-                            data);
-                if let Err(e) = function.call::<_, ()>(args) {
-                    error!("failure running rebuild hander: \n\n{}\n", e);
-                    return Err(Error::from(e.context(ErrorKind::FailedRebuildHandler)));
-                }
-
-                Ok(())
-            },
-            None => return Err(Error::from(ErrorKind::MissingRebuildHandlerRegistryValue)),
+                    debug!("calling event handler");
+                    let data = json_to_lua(&self.lua, event.data).context(
+                        ErrorKind::ParseEventMessage)?;
+                    let args = (event.event_type, event.consistency.key, event.correlation_id,
+                                data, event.timestamp_raw);
+                    if let Err(e) = function.call::<_, ()>(args) {
+                        error!("failure running rebuild hander: \n\n{}\n", e);
+                        return Err(Error::from(e.context(ErrorKind::FailedRebuildHandler)));
+                    }
+                },
+                None => {
+                    warn!("no handler for rebuild");
+                },
+            }
         }
+
+        Ok(())
     }
 }
 
@@ -60,7 +65,14 @@ impl Handler<Rebuild> for Interpreter {
     fn handle(&mut self, event: Rebuild, _: &mut Context<Self>) {
         info!("received rebuild signal from client");
         if let Err(e) = self.handle_rebuild(event) {
-            error!("processing rebuild: error='{}'", e);
+            match &e.downcast::<ErrorKind>() {
+                &Ok(ErrorKind::MissingRebuildHandlerRegistryValue) => {
+                    warn!("no handler for rebuild");
+                },
+                // Not able to collapse these two conditions into a single condition.
+                &Ok(ref e) => error!("processing rebuild: error='{}'", e),
+                &Err(ref e) => error!("processing rebuild: error='{}'", e),
+            }
         }
     }
 }

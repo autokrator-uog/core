@@ -55,27 +55,27 @@ impl Bus {
         }
     }
 
-    fn handle_unawknowledged_events(&mut self, message: Disconnect) -> Result<(), Error> {
-        debug!("processing unawknowledged events for disconnecting client: client='{}'",
+    fn handle_unacknowledged_events(&mut self, message: Disconnect) -> Result<(), Error> {
+        debug!("processing unacknowledged events for disconnecting client: client='{}'",
                message.addr);
-        let (client_type, unawknowledged_events) = match self.sessions.get(&message.addr) {
+        let (client_type, unacknowledged_events) = match self.sessions.get(&message.addr) {
             Some(details) => {
                 let client_type = details.client_type.clone().ok_or(
                     Error::from(ErrorKind::UnacknowledgedEventResendWithoutClientType))?;
-                (client_type, details.unawknowledged_events.clone())
+                (client_type, details.unacknowledged_events.clone())
             },
             None => return Err(Error::from(ErrorKind::SessionNotInHashMap)),
         };
 
 
-        for unawknowledged_event in unawknowledged_events.iter() {
-            debug!("re-propagating unawknowledged event: event=\n{}",
-                   to_string_pretty(&unawknowledged_events)?);
+        for unacknowledged_event in unacknowledged_events.iter() {
+            debug!("re-propagating unacknowledged event: event=\n{}",
+                   to_string_pretty(&unacknowledged_event)?);
             // We should convert this back to a event for sending - in the list it is meant for
             // matching with the expected incoming acks.
-            let mut unawknowledged_event = unawknowledged_event.clone();
-            unawknowledged_event.message_type = Some(String::from("event"));
-            self.propagate_event_to_client_type(&unawknowledged_event, client_type.clone());
+            let mut unacknowledged_event = unacknowledged_event.clone();
+            unacknowledged_event.message_type = Some(String::from("event"));
+            self.propagate_event_to_client_type(&unacknowledged_event, client_type.clone());
         }
 
         Ok(())
@@ -91,9 +91,9 @@ impl Handler<Disconnect> for Bus {
         // Remove the client address from the round robin state.
         self.remove_client_from_round_robin_state(message.clone());
 
-        // Process any unawknowledged events.
-        if let Err(e) = self.handle_unawknowledged_events(message.clone()) {
-            error!("handling unawknowledged events: error='{}'", e);
+        // Process any unacknowledged events.
+        if let Err(e) = self.handle_unacknowledged_events(message.clone()) {
+            error!("handling unacknowledged events: error='{}'", e);
         }
 
         if let Some(_) = self.sessions.remove(&message.addr) {

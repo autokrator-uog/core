@@ -74,7 +74,14 @@ impl Handler<Receipt> for Interpreter {
     fn handle(&mut self, receipt: Receipt, _: &mut Context<Self>) {
         info!("received receipt signal from client");
         if let Err(e) = self.handle_receipt(receipt) {
-            error!("processing receipt: error='{}'", e);
+            match &e.downcast::<ErrorKind>() {
+                &Ok(ErrorKind::MissingReceiptHandlerRegistryValue) => {
+                    warn!("no handler for receipt");
+                },
+                // Not able to collapse these two conditions into a single condition.
+                &Ok(ref e) => error!("processing receipt: error='{}'", e),
+                &Err(ref e) => error!("processing receipt: error='{}'", e),
+            }
         }
     }
 }

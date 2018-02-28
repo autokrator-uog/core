@@ -23,30 +23,30 @@ impl ResponseType for PropagateEvent {
     type Error = ();
 }
 
+enum ShouldSend {
+    Yes(SocketAddr, SessionDetails),
+    No,
+}
+
+fn should_send_to_client_type(registered_types: &RegisteredTypes, event_type: &str,
+                              client_type: &Option<String>) -> bool {
+    let is_registered = match *registered_types {
+        RegisteredTypes::All => true,
+        RegisteredTypes::Some(ref types) => {
+            if types.contains(&event_type.to_owned()) {
+                true
+            } else {
+                false
+            }
+        },
+    };
+    let has_client_type = client_type.is_some();
+    is_registered && has_client_type
+}
+
 impl Bus {
-    fn should_send_to_client(&self, socket: SocketAddr, details: SessionDetails,
-                             event_type: String) -> bool {
-        let should_send = match details.registered_types {
-            RegisteredTypes::All => true,
-            RegisteredTypes::Some(ref types) => {
-                if types.contains(&event_type) {
-                    true
-                } else {
-                    false
-                }
-            },
-        } && details.client_type.is_some();
-
-        info!("sending message registration check: client='{}' \
-              registered_types='RegisteredTypes::{:?}' \
-              type='{}' is_registered='{:?}' sending='{:?}'",
-              socket, details.registered_types, event_type, details.client_type.is_some(),
-              should_send);
-        should_send
-    }
-
     fn next_client_for_sending(&mut self, event: Event,
-                               client_type: &String) -> Result<(SocketAddr, SessionDetails), Error>
+                               client_type: &String) -> Result<ShouldSend, Error>
     {
         let sticky_key = (client_type.clone(), event.consistency.key.clone());
         let socket = if let Some(socket) = self.sticky_consistency.get(&sticky_key) {
@@ -73,53 +73,57 @@ impl Bus {
             self.sticky_consistency.insert(sticky_key.clone(), socket);
             details.consistency_keys.insert(sticky_key);
 
-            // Keep track of this event as unawknowledged.
-            let mut expected_ack_event = event.clone();
-            expected_ack_event.message_type = Some(String::from("ack"));
-            details.unawknowledged_events.insert(expected_ack_event);
+            // We need to check whether we should send to this client. In theory, this could
+            // cause a certain client type to miss an event entirely if this were to return
+            // false. However, given that all instances of a client type should be consistent
+            // in which event types they are interested in, in practice this shouldn't cause
+            // an issue.
+            if should_send_to_client_type(&details.registered_types, &event.event_type,
+                                          &details.client_type) {
+                info!("sending 'send to client' signal: client='{}'", socket);
+                // Keep track of this event as unacknowledged.
+                let mut expected_ack_event = event.clone();
+                expected_ack_event.message_type = Some(String::from("ack"));
+                details.unacknowledged_events.insert(expected_ack_event);
 
-            Ok((socket.clone(), details.clone()))
+                Ok(ShouldSend::Yes(socket.clone(), details.clone()))
+            } else {
+                info!("not sending 'send to client' signal: client='{}'", socket);
+                Ok(ShouldSend::No)
+            }
         } else {
             Err(Error::from(ErrorKind::SessionNotInHashMap))
         }
     }
 
     pub fn propagate_event_to_client_type(&mut self, event: &Event, client_type: String) {
-        let event_type = event.event_type.clone();
-
         // For each client type, we take the next available round robin selected client.
-        if let Ok((socket, details)) = self.next_client_for_sending(event.clone(),
-                                                                    &client_type) {
-            info!("client selection: client='{}'", socket);
-
-            // We need to check whether we should send to this client. In theory, this could
-            // cause a certain client type to miss an event entirely if this were to return
-            // false. However, given that all instances of a client type should be consistent
-            // in which event types they are interested in, in practice this shouldn't cause
-            // an issue.
-            if self.should_send_to_client(socket, details.clone(), event_type.clone()) {
-                info!("sending 'send to client' signal: client='{}'", socket);
+        match self.next_client_for_sending(event.clone(), &client_type) {
+            Ok(ShouldSend::Yes(socket, details)) => {
+                info!("client selection: client='{}'", socket);
                 details.address.send(SendToClient(event.clone()));
-            } else {
-                info!("not sending 'send to client' signal: client='{}'", socket);
-            }
-        } else {
-            warn!("round robin selection failed, saving for resend at later time");
-            match self.pending_events.entry(client_type.clone()) {
-                Entry::Occupied(mut entry) => {
-                    debug!("adding another pending evnet for client type: client_type='{}'",
-                           client_type);
-                    let mut existing_events = { entry.get().clone() };
-                    existing_events.push(event.clone());
-                    entry.insert(existing_events);
-                },
-                Entry::Vacant(entry) => {
-                    debug!("adding first pending event for client type: client_type='{}'",
-                           client_type);
-                    entry.insert(vec![event.clone()]);
-                },
-            }
-        }
+            },
+            // If we aren't registered for this event, this client type will never be registered,
+            // don't mark as pending.
+            Ok(ShouldSend::No) => {},
+            Err(_) => {
+                warn!("round robin selection failed, saving for resend at later time");
+                match self.pending_events.entry(client_type.clone()) {
+                    Entry::Occupied(mut entry) => {
+                        debug!("adding another pending event for client type: client_type='{}'",
+                               client_type);
+                        let mut existing_events = { entry.get().clone() };
+                        existing_events.push(event.clone());
+                        entry.insert(existing_events);
+                    },
+                    Entry::Vacant(entry) => {
+                        debug!("adding first pending event for client type: client_type='{}'",
+                               client_type);
+                        entry.insert(vec![event.clone()]);
+                    },
+                }
+            },
+        };
     }
 
     pub fn propagate_event(&mut self, event: Event) {

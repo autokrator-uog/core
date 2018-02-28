@@ -1,6 +1,6 @@
 use actix::{Address, Context, Handler, ResponseType};
 use chrono::DateTime;
-use common::schemas::{Query as QuerySchema, Event};
+use common::schemas::{Event, Rebuild, Query as QuerySchema};
 use couchbase::{N1qlResult};
 use failure::{Error, Fail, ResultExt};
 use futures::{Stream};
@@ -37,25 +37,33 @@ impl Bus {
         debug!("parsed query event message: message=\n{}",
               to_string_pretty(&parsed).context(ErrorKind::SerializeJsonForSending)?);
 
+        let query_timestamp = if parsed.since.to_uppercase() == "*" {
+            0
+        } else {
+            let begin_datetime = DateTime::parse_from_rfc3339(&parsed.since).context(
+                ErrorKind::ParseQueryMessage)?;
+            begin_datetime.timestamp()
+        };
+
         // serialize event types into a sensible string
         let event_types: Vec<String> = parsed.event_types.iter()
             .map(|et| { "\"".to_string() + &et + "\"" })
             .collect();
-        let mut query = format!("SELECT * FROM events WHERE event_type IN [{}]",
-                                event_types.join(", "));
-
-        // allow an ALL option
-        if parsed.since.to_uppercase() != "*" {
-            let begin_datetime = DateTime::parse_from_rfc3339(&parsed.since).context(
-                ErrorKind::ParseQueryMessage)?;
-            query = format!("{} AND timestamp_raw > {}", query, begin_datetime.timestamp());
-        }
-
-        debug!("executing query: query='{}'", query);
+        let query = format!(r#"
+                                SELECT * FROM events
+                                WHERE event_type IN [{}] AND timestamp_raw > {}
+                                ORDER BY timestamp_raw ASC
+                            "#,
+                            event_types.join(", "), query_timestamp);
+        debug!("executing query: query=\n{}", query);
 
         let client_session = message.sender;
         let result_iter = self.event_bucket.query_n1ql(query).wait();
 
+        let mut rebuild = Rebuild {
+            message_type: String::from("rebuild"),
+            events: Vec::new(),
+        };
         for row in result_iter {
             match row {
                 Ok(N1qlResult::Meta(meta)) => {
@@ -69,14 +77,14 @@ impl Bus {
                         ErrorKind::CouchbaseDeserialize)?;
                     let mut event = parsed_row.events.clone();
                     event.message_type = Some(String::from("rebuild"));
-
-                    client_session.send(SendToClient(event));
+                    rebuild.events.push(event);
                 },
                 Err(e) => return Err(Error::from(e.context(
                             ErrorKind::CouchbaseFailedGetQueryResult))),
             }
         }
 
+        client_session.send(SendToClient(rebuild));
         Ok(())
     }
 }

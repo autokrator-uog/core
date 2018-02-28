@@ -70,11 +70,23 @@ impl Interpreter {
             ErrorKind::RedisPersist).map_err(Error::from)
     }
 
+    fn respond_with_acknowledgement(&self, mut acknowledgement: EventSchema) -> Result<(), Error> {
+        // Respond with an acknowledgement.
+        acknowledgement.message_type = Some(String::from("ack"));
+        if let Some(ref client) = self.client {
+            info!("responding with acknowledgement");
+            client.send(SendMessage(acknowledgement));
+            Ok(())
+        } else {
+            Err(Error::from(ErrorKind::ClientNotLinkedToInterpreter))
+        }
+    }
+
     fn handle_event(&mut self, event: Event) -> Result<(), Error> {
         let parsed: EventSchema = from_str(&event.message).context(ErrorKind::ParseEventMessage)?;
         debug!("received event: message=\n{}", to_string_pretty(&parsed)?);
         // We'll send this if handler succeeds.
-        let mut awknowledgement = parsed.clone();
+        let acknowledgement = parsed.clone();
 
         debug!("saving timestamp for query");
         self.save_timestamp_for_query(&parsed)?;
@@ -94,24 +106,19 @@ impl Interpreter {
                 let data = json_to_lua(&self.lua, parsed.data).context(
                     ErrorKind::ParseEventMessage)?;
                 let args = (parsed.event_type, parsed.consistency.key, parsed.correlation_id,
-                            data);
+                            data, parsed.timestamp_raw);
                 if let Err(e) = function.call::<_, ()>(args) {
                     error!("failure running event hander: \n\n{}\n", e);
                     return Err(Error::from(e.context(ErrorKind::FailedEventHandler)));
                 }
 
-                // Respond with an awknowledgement.
-                awknowledgement.message_type = Some(String::from("ack"));
-                if let Some(ref client) = self.client {
-                    info!("responding with awknowledgement");
-                    client.send(SendMessage(awknowledgement));
-                } else {
-                    return Err(Error::from(ErrorKind::ClientNotLinkedToInterpreter));
-                }
-
+                self.respond_with_acknowledgement(acknowledgement)?;
                 Ok(())
             },
-            None => return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue)),
+            None => {
+                self.respond_with_acknowledgement(acknowledgement)?;
+                return Err(Error::from(ErrorKind::MissingEventHandlerRegistryValue));
+            },
         }
     }
 }
@@ -122,7 +129,12 @@ impl Handler<Event> for Interpreter {
     fn handle(&mut self, event: Event, _: &mut Context<Self>) {
         info!("received event signal from client");
         if let Err(e) = self.handle_event(event) {
-            error!("processing event: error='{}'", e);
+            match &e.downcast::<ErrorKind>() {
+                &Ok(ErrorKind::MissingEventHandlerRegistryValue) => warn!("no handler for event"),
+                // Not able to collapse these two conditions into a single condition.
+                &Ok(ref e) => error!("processing event: error='{}'", e),
+                &Err(ref e) => error!("processing event: error='{}'", e),
+            }
         }
     }
 }

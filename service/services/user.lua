@@ -4,7 +4,7 @@ local ACCOUNT_PREFIX = "creation-"
 local ID_KEY = "__request_id"
 
 -- Listen for when an account is created, add it to its corresponding user.
-bus:add_event_listener("AccountCreated", function(event_type, key, correlation, data)
+bus:add_event_listener("AccountCreated", function(event_type, key, correlation, data, ts)
     log:debug("received account created event")
 
     local request_key = ACCOUNT_PREFIX .. data.request_id
@@ -30,8 +30,8 @@ bus:add_event_listener("AccountCreated", function(event_type, key, correlation, 
     end
 end)
 
-bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, data)
-    local user = redis.get(key)
+bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, data, ts)
+    local user = redis:get(key)
     if not user then
         user = { accounts = {} }
         for k, v in pairs(data) do user[k] = v end
@@ -41,7 +41,7 @@ bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, da
     end
 end)
 
-bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation, data, ts)
     log:debug("received account created event")
     local request_key = ACCOUNT_PREFIX .. data.request_id
     local account = redis:get(request_key)
@@ -66,7 +66,7 @@ bus:add_rebuild_handler("AccountCreated", function(event_type, key, correlation,
     end
 end)
 
-bus:add_rebuild_handler("AccountCreationRequest", function(event_type, key, correlation, data)
+bus:add_rebuild_handler("AccountCreationRequest", function(event_type, key, correlation, data, ts)
     redis:incr(ID_KEY)
 
     local account = redis:get(key)
