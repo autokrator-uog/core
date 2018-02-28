@@ -31,7 +31,7 @@ bus:add_event_listener("AccountCreated", function(event_type, key, correlation, 
 end)
 
 bus:add_rebuild_handler("UserCreated", function(event_type, key, correlation, data, ts)
-    local user = redis.get(key)
+    local user = redis:get(key)
     if not user then
         user = { accounts = {} }
         for k, v in pairs(data) do user[k] = v end
