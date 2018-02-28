@@ -10,6 +10,12 @@ bus:add_event_listener("PendingTransaction", function(event_type, key, correlati
     local to_account = redis:get(to_acc_key)
     if not to_account then
         log:warn("received " .. event_type .. " for to account that is not in redis")
+        -- If recipient account does not exist then send a rejected transaction and return.
+        bus:send("RejectedTransaction", key, true, correlation, {
+            transaction_id = data.id,
+            reason = "Recipient account does not exist", 
+        })
+        return
     end
 
     local from_acc_key = PREFIX .. data.fromAccountId
@@ -39,10 +45,18 @@ bus:add_event_listener("PendingTransaction", function(event_type, key, correlati
         -- If the user can't, don't.
         else
             -- If we reject a transaction, just send a rejected transaction event out.
-            bus:send("RejectedTransaction", key, true, correlation, { transaction_id = data.id })
+            bus:send("RejectedTransaction", key, true, correlation, {
+                transaction_id = data.id,
+                reason = "Insufficient Balance", 
+            })
         end
     else
         log:warn("received " .. event_type .. " for from account that is not in redis")
+        -- If the sending account does not exist then send a rejected transaction.
+        bus:send("RejectedTransaction", key, true, correlation, {
+            transaction_id = data.id,
+            reason = "Sender account does not exist", 
+        })
     end
 end)
 
