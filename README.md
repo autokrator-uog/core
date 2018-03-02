@@ -33,13 +33,16 @@ There are various runtime dependencies of the event bus and the superclient - th
   3. Run `./stop.sh` to kill and remove all the running containers.
 
 ## How to run
-Both the event bus and the superclient are managed by [Cargo](https://github.com/rust-lang/cargo) - Rust's excellent package manager - therefore compilation of dependencies (not including those mentioned above) and executing the application is handled automatically:
+Both the event bus and the superclient are managed by [Cargo](https://github.com/rust-lang/cargo) - Rust's excellent package manager - therefore compilation of dependencies (not including those mentioned above) and executing the application is handled automatically.
 
-  1. (Event bus) Browse to the server directory - `cd server`.
-  2. (Event bus) Run `cargo run -- server` to start the event bus.
-  3. (Superclient) Start the event bus.
-  4. (Superclient) Browse to the service directory - `cd service`.
-  5. (Superclient) Run `cargo run -- services/transaction.lua` to start the superclient with the provided Lua file as the current service.
+### Event Bus
+  1. Browse to the server directory - `cd server`.
+  2. Run `cargo run -- server` to start the event bus.
+
+### Superclient
+  1. Start the event bus.
+  2. Browse to the service directory - `cd service`.
+  3. Run `cargo run -- services/transaction.lua` to start the superclient with the provided Lua file as the current service.
 
 ## How to test
 Both the event bus and the superclient are managed by [Cargo](https://github.com/rust-lang/cargo) - Rust's excellent package manager - therefore testing of the event bus, superclient and common libraries are handled as follows:
