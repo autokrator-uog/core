@@ -33,7 +33,6 @@ websocket = "0.20.2"
 git = "https://github.com/actix/actix.git"
 rev = "136fd07"
 
-# Change this back to the main repository once actix/actix-web#66 is merged.
 [dependencies.actix-web]
-git = "https://github.com/davidtwco/actix-web.git"
+git = "https://github.com/autokrator-uog/actix-web.git"
 rev = "8590eca"
